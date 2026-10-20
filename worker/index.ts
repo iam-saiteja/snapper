@@ -1,7 +1,6 @@
 import { json, type Env, type Route } from './lib/core'
 import * as deviceRegister from './api/device/register'
 import * as deviceState from './api/device/state'
-import * as emergency from './api/emergency'
 import * as linkSummarize from './api/link/summarize'
 import * as quizAnswer from './api/quiz/answer'
 import * as quizStart from './api/quiz/start'
@@ -16,7 +15,6 @@ const routes: Record<string, { GET?: Route; POST?: Route }> = {
   '/api/quiz/answer': quizAnswer,
   '/api/unlock': unlock,
   '/api/unlock-chat': unlockChat,
-  '/api/emergency': emergency,
   '/api/transcribe': transcribe,
   '/api/link/summarize': linkSummarize,
   '/api/device/register': deviceRegister,

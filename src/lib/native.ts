@@ -11,6 +11,7 @@ export type NativeStatus = {
   dnsLock: boolean
   dnsSet: boolean
   dnsHost: string
+  dnsSupported: boolean
   blockerSyncedAt: number
   blockerBalance: number
   blockerPenaltyLocked: number
@@ -49,6 +50,7 @@ const WebStub: SnapperPlugin = {
     dnsLock: false,
     dnsSet: false,
     dnsHost: 'family.adguard-dns.com',
+    dnsSupported: true,
     blockerSyncedAt: 0,
     blockerBalance: 0,
     blockerPenaltyLocked: 0,
