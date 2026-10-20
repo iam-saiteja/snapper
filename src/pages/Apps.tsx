@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { App as CapApp } from '@capacitor/app'
 import type { DeviceState } from '../../shared/schema'
 import { api } from '../lib/api'
-import { appStatus, formatMinutes, type AppStatus } from '../lib/apps'
+import { appStatus, formatMinutes, unlockedUntil, type AppStatus } from '../lib/apps'
 import { isNative, Snapper, type InstalledApp } from '../lib/native'
 
 const STATUS_LABEL: Record<AppStatus, string> = {
+  unlocked: 'Unlocked',
   blocked: 'Blocked',
   penalty: 'Locked (negative points)',
   penaltyIfNegative: 'Locks if points < 0',
@@ -16,6 +17,7 @@ const STATUS_LABEL: Record<AppStatus, string> = {
 export default function Apps() {
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [usageAccess, setUsageAccess] = useState(true)
+  const [categoriesSupported, setCategoriesSupported] = useState(true)
   const [state, setState] = useState<DeviceState | null>(null)
   const [filter, setFilter] = useState('')
   const [category, setCategory] = useState('all')
@@ -26,6 +28,7 @@ export default function Apps() {
       .then(([r, s]) => {
         setApps(r.apps)
         setUsageAccess(r.usageAccess)
+        setCategoriesSupported(r.categoriesSupported)
         setState(s)
       })
       .catch((e) => setError(e.message))
@@ -79,6 +82,13 @@ export default function Apps() {
         )}
       </section>
 
+      {!categoriesSupported && (
+        <p className="error">
+          This Android version doesn't report app categories, so only "payments" and the built-in social list work.
+          List other apps under "blocked" in the rules.
+        </p>
+      )}
+
       <input placeholder="Search apps" value={filter} onChange={(e) => setFilter(e.target.value)} />
       <select value={category} onChange={(e) => setCategory(e.target.value)}>
         {categories.map((c) => (
@@ -99,7 +109,11 @@ export default function Apps() {
               <span>
                 {a.category}{a.payment && ' · payments'} · <span style={{ userSelect: 'all' }}>{a.package}</span>
               </span>
-              <span className={status === 'allowed' ? '' : status === 'penaltyIfNegative' ? 'muted' : 'bad'}>{STATUS_LABEL[status]}</span>
+              <span className={status === 'allowed' || status === 'unlocked' ? 'ok' : status === 'penaltyIfNegative' ? 'muted' : 'bad'}>
+                {status === 'unlocked'
+                  ? `Unlocked until ${new Date(unlockedUntil(a.package, state)).toLocaleTimeString()}`
+                  : STATUS_LABEL[status]}
+              </span>
             </div>
           </div>
         )

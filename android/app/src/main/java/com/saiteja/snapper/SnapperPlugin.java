@@ -94,10 +94,10 @@ public class SnapperPlugin extends Plugin {
         AppCatalog.invalidate();
         java.util.Map<String, Long> usage = AppCatalog.usageToday(getContext());
         com.getcapacitor.JSArray apps = new com.getcapacitor.JSArray();
-        for (AppCatalog.App a : AppCatalog.all(getContext())) {
+        for (AppCatalog.App a : AppCatalog.visible(getContext())) {
             JSObject o = new JSObject();
             o.put("package", a.pkg);
-            o.put("name", a.name);
+            o.put("name", a.name(getContext().getPackageManager()));
             o.put("category", a.category);
             o.put("payment", a.payment);
             Long ms = usage.get(a.pkg);
@@ -107,6 +107,7 @@ public class SnapperPlugin extends Plugin {
         JSObject r = new JSObject();
         r.put("apps", apps);
         r.put("usageAccess", AppCatalog.hasUsageAccess(getContext()));
+        r.put("categoriesSupported", AppCatalog.categoriesSupported());
         call.resolve(r);
     }
 

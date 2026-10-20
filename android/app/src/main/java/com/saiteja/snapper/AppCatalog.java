@@ -27,15 +27,25 @@ final class AppCatalog {
 
     static final class App {
         final String pkg;
-        final String name;
         final String category;
         final boolean payment;
+        // Shown on the Apps screen (has a launcher icon, or was installed by the user).
+        final boolean visible;
+        private final ApplicationInfo info;
+        private String name;
 
-        App(String pkg, String name, String category, boolean payment) {
-            this.pkg = pkg;
-            this.name = name;
+        App(ApplicationInfo info, String category, boolean payment, boolean visible) {
+            this.pkg = info.packageName;
+            this.info = info;
             this.category = category;
             this.payment = payment;
+            this.visible = visible;
+        }
+
+        /** Loaded on demand: reading every app's label is slow and categories don't need it. */
+        String name(PackageManager pm) {
+            if (name == null) name = info.loadLabel(pm).toString();
+            return name;
         }
     }
 
@@ -57,9 +67,14 @@ final class AppCatalog {
     private static final long CACHE_MS = 10 * 60_000;
     private static Map<String, App> cache;
     private static long cachedAt;
+    private static long lastMissRebuild;
 
     private AppCatalog() {}
 
+    /**
+     * Every installed app (not only ones with a launcher icon, so apps reachable through links or other
+     * exported screens are categorised too).
+     */
     static synchronized Map<String, App> apps(Context c) {
         long now = System.currentTimeMillis();
         if (cache != null && now - cachedAt < CACHE_MS) return cache;
@@ -68,18 +83,33 @@ final class AppCatalog {
         for (ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_VIEW, Uri.parse("upi://pay?pa=test@upi")), 0)) {
             upi.add(ri.activityInfo.packageName);
         }
+        Set<String> launchable = new HashSet<>();
+        for (ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
+            launchable.add(ri.activityInfo.packageName);
+        }
         Map<String, App> out = new HashMap<>();
-        Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
-        for (ResolveInfo ri : pm.queryIntentActivities(launcher, 0)) {
-            ApplicationInfo ai = ri.activityInfo.applicationInfo;
+        for (ApplicationInfo ai : pm.getInstalledApplications(0)) {
             String pkg = ai.packageName;
-            if (pkg.equals(c.getPackageName()) || out.containsKey(pkg)) continue;
+            if (pkg.equals(c.getPackageName())) continue;
+            boolean system = (ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0 && (ai.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
             boolean payment = upi.contains(pkg) || KNOWN_PAYMENTS.contains(pkg);
-            out.put(pkg, new App(pkg, ri.loadLabel(pm).toString(), categoryOf(ai), payment));
+            out.put(pkg, new App(ai, categoryOf(ai), payment, launchable.contains(pkg) || !system));
         }
         cache = out;
         cachedAt = now;
+        lastMissRebuild = now;
         return out;
+    }
+
+    /** Lookup that rebuilds once (at most every 5 s) when a package is unknown, e.g. just installed. */
+    private static App find(Context c, String pkg) {
+        App app = apps(c).get(pkg);
+        if (app != null) return app;
+        synchronized (AppCatalog.class) {
+            if (System.currentTimeMillis() - lastMissRebuild < 5_000) return null;
+            cache = null;
+        }
+        return apps(c).get(pkg);
     }
 
     static void invalidate() {
@@ -107,8 +137,9 @@ final class AppCatalog {
     /** True if the installed app falls in any of the given categories ("payments" = can open UPI links). */
     static boolean inCategories(Context c, String pkg, JSONArray categories, JSONArray except) {
         if (categories == null || categories.length() == 0) return false;
-        if (contains(except, pkg)) return false;
-        App app = apps(c).get(pkg);
+        // Category rules never take out calls, alarms, keyboards or the home screen.
+        if (contains(except, pkg) || SleepMode.isEssential(c, pkg)) return false;
+        App app = find(c, pkg);
         if (app == null) return false;
         for (int i = 0; i < categories.length(); i++) {
             String cat = categories.optString(i);
@@ -117,9 +148,14 @@ final class AppCatalog {
         return false;
     }
 
+    /** Android 7 apps don't declare categories; only the built-in social list and UPI detection work there. */
+    static boolean categoriesSupported() {
+        return Build.VERSION.SDK_INT >= 26;
+    }
+
     static String label(Context c, String pkg) {
         App app = apps(c).get(pkg);
-        return app != null ? app.name : pkg;
+        return app != null ? app.name(c.getPackageManager()) : pkg;
     }
 
     static boolean contains(JSONArray arr, String value) {
@@ -156,7 +192,10 @@ final class AppCatalog {
         return out;
     }
 
-    static List<App> all(Context c) {
-        return new ArrayList<>(apps(c).values());
+    /** Apps for the Apps screen: launchable or user-installed (hides background system packages). */
+    static List<App> visible(Context c) {
+        List<App> out = new ArrayList<>();
+        for (App a : apps(c).values()) if (a.visible) out.add(a);
+        return out;
     }
 }

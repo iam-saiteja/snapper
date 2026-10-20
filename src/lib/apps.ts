@@ -1,13 +1,15 @@
 import type { DeviceState } from '../../shared/schema'
 import type { InstalledApp } from './native'
 
-export type AppStatus = 'blocked' | 'penalty' | 'penaltyIfNegative' | 'allowed'
+export type AppStatus = 'unlocked' | 'blocked' | 'penalty' | 'penaltyIfNegative' | 'allowed'
 
 const inCategories = (app: InstalledApp, categories: string[], except: string[]) =>
   !except.includes(app.package) && categories.some((c) => (c === 'payments' ? app.payment : c === app.category))
 
 /** Same decision the native blocker makes (outside sleep hours). */
 export function appStatus(app: InstalledApp, s: DeviceState): AppStatus {
+  // An active unlock overrides blocking and penalty locks, exactly like the native blocker.
+  if (unlockedUntil(app.package, s) > Date.now()) return 'unlocked'
   if (s.penaltyLocked.some((p) => p.package === app.package) || inCategories(app, s.penaltyLockedCategories, s.exceptApps)) {
     return 'penalty'
   }
@@ -33,3 +35,6 @@ export const formatMinutes = (ms: number) => {
   const m = Math.round(ms / 60000)
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`
 }
+
+export const unlockedUntil = (pkg: string, s: DeviceState) =>
+  s.unlocks.filter((u) => u.package === pkg).reduce((m, u) => Math.max(m, u.endsAt), 0)

@@ -24,7 +24,7 @@ interface SnapperPlugin {
   scheduleReminder(o: { id: string; at: number; text: string; audioPath?: string }): Promise<void>
   cancelReminder(o: { id: string }): Promise<void>
   consumeSharedText(): Promise<{ text: string | null }>
-  listApps(): Promise<{ apps: InstalledApp[]; usageAccess: boolean }>
+  listApps(): Promise<{ apps: InstalledApp[]; usageAccess: boolean; categoriesSupported: boolean }>
   openUsageAccessSettings(): Promise<void>
   addListener(event: 'shared', cb: (e: { text: string }) => void): Promise<PluginListenerHandle>
 }
@@ -49,7 +49,7 @@ const WebStub: SnapperPlugin = {
   scheduleReminder: async () => {},
   cancelReminder: async () => {},
   consumeSharedText: async () => ({ text: null }),
-  listApps: async () => ({ apps: [], usageAccess: false }),
+  listApps: async () => ({ apps: [], usageAccess: false, categoriesSupported: true }),
   openUsageAccessSettings: async () => {},
   addListener: async () => ({ remove: async () => {} }),
 }

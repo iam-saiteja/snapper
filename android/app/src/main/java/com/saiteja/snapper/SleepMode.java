@@ -75,8 +75,13 @@ final class SleepMode {
         return 0;
     }
 
+    /** Calls, SMS, alarms, keyboards, the home screen, system UI and Snapper itself. */
+    static boolean isEssential(Context c, String pkg) {
+        return pkg.equals(c.getPackageName()) || ALWAYS_ALLOWED.contains(pkg) || deviceAllowed(c).contains(pkg);
+    }
+
     static boolean isAllowed(Context c, String pkg) {
-        if (pkg.equals(c.getPackageName()) || ALWAYS_ALLOWED.contains(pkg) || deviceAllowed(c).contains(pkg)) return true;
+        if (isEssential(c, pkg)) return true;
         JSONObject sleep = StateStore.state(c).optJSONObject("sleep");
         return sleep != null && AppCatalog.contains(sleep.optJSONArray("allowApps"), pkg);
     }

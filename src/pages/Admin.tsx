@@ -28,6 +28,8 @@ export default function Admin() {
   const [status, setStatus] = useState('')
   const [future, setFuture] = useState<Task[]>([])
   const [busy, setBusy] = useState(false)
+  // Bumped when an import saves rules, so the rules editor reloads instead of showing stale rules.
+  const [rulesVersion, setRulesVersion] = useState(0)
   const tomorrow = addDays(todayIST(), 1)
 
   const load = () =>
@@ -69,6 +71,7 @@ export default function Admin() {
         if (error) throw new Error(`reminders: ${error.message}`)
       }
       const rulesNote = plan.rules ? ` Rules saved, effective ${await saveRules(plan.rules)}.` : ''
+      if (plan.rules) setRulesVersion((v) => v + 1)
       setStatus(`Imported ${tasks.length} tasks and ${reminders.length} reminders.${rulesNote}`)
       setJson('')
       await load()
@@ -134,7 +137,7 @@ export default function Admin() {
         </section>
       ))}
 
-      <RulesEditor />
+      <RulesEditor key={rulesVersion} />
     </>
   )
 }
