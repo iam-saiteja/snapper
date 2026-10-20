@@ -309,7 +309,13 @@ in every app and browser, using Android's Private DNS with [AdGuard Family DNS](
 2. Go to **Settings → Network & internet → Private DNS → Private DNS provider hostname**, enter `family.adguard-dns.com`, and save.
 3. The phone unlocks. From then on Snapper watches the setting: if Private DNS is ever changed away from that host, you lose the violation penalty, it's logged, and the phone locks again until you set it back.
 
-The Private DNS settings screen is reachable (so you can set it), but turning the lock *off* only happens by [asking the gatekeeper](#asking-the-gatekeeper-to-unlock), and like all rule changes it takes effect the next day.
+The Private DNS settings screen stays reachable so you can set it. **Once the lock is on, it can't be switched off
+or pointed at another host by editing rules.** The database refuses any rules save that does that, including one
+that leaves out `dns`. The only way around it is a short, temporary unlock that the
+[gatekeeper](#asking-the-gatekeeper-to-unlock) approves. Changing DNS during that unlock isn't penalised; once it
+ends, the phone locks again until the filter is back.
+
+Private DNS needs **Android 9 or newer**. On older phones the lock isn't enforced (it couldn't be satisfied).
 
 | Field | Default | Meaning |
 |---|---|---|

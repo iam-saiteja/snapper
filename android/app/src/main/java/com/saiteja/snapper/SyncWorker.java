@@ -57,7 +57,11 @@ public class SyncWorker extends Worker {
 
         HttpURLConnection conn = null;
         try {
-            conn = (HttpURLConnection) new URL(base + "/api/device/state?a11y=" + (a11y ? 1 : 0) + "&dns=" + (dnsOk ? 1 : 0)).openConnection();
+            // dnsHost is the host actually set on the phone, so the server checks it against the current rules
+            // (dns stays for compatibility with older server versions).
+            String query = "a11y=" + (a11y ? 1 : 0) + "&dns=" + (dnsOk ? 1 : 0)
+                + "&dnsHost=" + java.net.URLEncoder.encode(DnsLock.currentHost(c), "UTF-8");
+            conn = (HttpURLConnection) new URL(base + "/api/device/state?" + query).openConnection();
             conn.setConnectTimeout(15_000);
             conn.setReadTimeout(15_000);
             conn.setRequestProperty("x-device-token", token);

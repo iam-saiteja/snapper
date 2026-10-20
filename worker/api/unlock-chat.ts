@@ -17,7 +17,7 @@ type Msg = { role: 'user' | 'assistant'; content: string; at: string }
 // sleep mode, the DNS content filter and Settings.
 export const POST = handler(async (ctx) => {
   const userId = await requireUser(ctx)
-  const { chatId, package: pkg, name, message } = await body(
+  const { chatId, package: requestedPkg, name: requestedName, message } = await body(
     ctx,
     z.object({
       chatId: z.uuid().optional(),
@@ -34,6 +34,10 @@ export const POST = handler(async (ctx) => {
     : null
   if (chatId && !chat) throw new HttpError(404, 'conversation not found')
   if (chat && chat.status !== 'open') throw new HttpError(400, 'this conversation is already closed')
+  // A conversation is about the app it started with; a later message can't retarget the approval
+  // (e.g. argue for PhonePe, then send the last message with the DNS pseudo-package).
+  const pkg: string = chat ? chat.package : requestedPkg
+  const name: string | undefined = chat ? chat.name : requestedName
 
   // Only names from the rules are trusted; a label from the phone is shown to the AI as unverified.
   const known = knownName(pkg, rules)
@@ -67,16 +71,22 @@ export const POST = handler(async (ctx) => {
   )
 
   const atCap = approvedThisWeek >= rules.emergency.maxPerWeek
+  const cappedApproval = turn.decision === 'approve' && atCap
   const approve = turn.decision === 'approve' && !atCap
   const minutes = approve ? Math.min(Math.max(turn.minutes || 10, 1), rules.emergency.maxMinutes) : 0
-  let reply = turn.reply
-  if (turn.decision === 'approve' && atCap) {
-    reply = `You have used all ${rules.emergency.maxPerWeek} unlocks this week, so I can't approve another one. ${reply}`
-  }
-  const status = approve ? 'approved' : turn.decision === 'deny' ? 'denied' : 'open'
+  // A capped approval is a final denial (logged), not an open chat that keeps saying "can't approve".
+  const reply = cappedApproval
+    ? `You've already used all ${rules.emergency.maxPerWeek} approved unlocks this week, so I can't unlock this now.`
+    : turn.reply
+  const status = approve ? 'approved' : turn.decision === 'deny' || cappedApproval ? 'denied' : 'open'
 
   nextHistory.push({ role: 'assistant', content: reply, at: new Date().toISOString() })
-  ok(await sb.from('unlock_chats').update({ messages: nextHistory, status }).eq('id', chat.id).eq('status', 'open'))
+  // Single winner: only the request that still finds the chat open may record its outcome, so two
+  // simultaneous messages can't both create approvals.
+  const claimed = must(
+    await sb.from('unlock_chats').update({ messages: nextHistory, status }).eq('id', chat.id).eq('status', 'open').select('id'),
+  )
+  if (claimed.length === 0) throw new HttpError(409, 'this conversation was already decided')
 
   if (status !== 'open') {
     // One emergencies row per resolved conversation: the audit log and the weekly counter.

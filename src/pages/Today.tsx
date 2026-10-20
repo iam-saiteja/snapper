@@ -170,6 +170,27 @@ function Emergency({ state, installed, onDone }: { state: DeviceState; installed
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
+  // Resume a conversation that was still open when the app was closed (the server keeps the transcript).
+  useEffect(() => {
+    const since = new Date(Date.now() - 24 * 3600_000).toISOString()
+    supabase
+      .from('unlock_chats')
+      .select('id, package, messages')
+      .eq('status', 'open')
+      .gt('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        const msgs = (data?.messages ?? []) as ChatMsg[]
+        if (!data || !msgs.length) return
+        setPkg(data.package)
+        setChatId(data.id)
+        setMessages(msgs.map((m) => ({ role: m.role, content: m.content })))
+        setOpen(true)
+      })
+  }, [])
+
   function reset(nextPkg = pkg) {
     setPkg(nextPkg)
     setChatId(undefined)
@@ -269,7 +290,14 @@ function activeSleepWindow(state: DeviceState) {
 }
 
 function DnsBanner({ state }: { state: DeviceState }) {
+  const [supported, setSupported] = useState(true)
+  useEffect(() => {
+    if (isNative) Snapper.getStatus().then((s) => setSupported(s.dnsSupported))
+  }, [])
   if (!state.dns.lock) return null
+  if (!supported) {
+    return <section className="muted">Content filter is on, but this phone has no Private DNS (needs Android 9+), so it isn't enforced here.</section>
+  }
   return (
     <section className="muted">
       Content filter on: set Private DNS to <b>{state.dns.host}</b> (Settings → Network → Private DNS). The phone

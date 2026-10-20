@@ -79,6 +79,7 @@ public class SnapperPlugin extends Plugin {
         r.put("dnsLock", DnsLock.isLocked(getContext()));
         r.put("dnsSet", DnsLock.isSet(getContext()));
         r.put("dnsHost", DnsLock.requiredHost(getContext()));
+        r.put("dnsSupported", DnsLock.supported());
         // What the blocker is enforcing right now, to spot a stale state.
         org.json.JSONObject st = StateStore.state(getContext());
         r.put("blockerSyncedAt", StateStore.syncedAt(getContext()));
