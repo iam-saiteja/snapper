@@ -29,12 +29,8 @@ public class BlockActivity extends Activity {
         String message;
         if (REASON_SLEEP.equals(reason)) {
             long until = getIntent().getLongExtra(EXTRA_UNTIL, 0);
-            String time = until > 0
-                ? new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US) {{ setTimeZone(java.util.TimeZone.getTimeZone("Asia/Kolkata")); }}
-                    .format(new java.util.Date(until))
-                : "morning";
-            message = "Sleep time until " + time + ".
-Only calls, alarms and your allowed sites work now.";
+            String time = until > 0 ? istTime(until) : "morning";
+            message = "Sleep time until " + time + ".\nOnly calls, alarms and your allowed sites work now.";
         } else if (REASON_PENALTY.equals(reason)) {
             message = name + " is locked because your points are negative.\nFinish your tasks to unlock it.";
         } else if (REASON_SELF.equals(reason)) {
@@ -94,6 +90,12 @@ Only calls, alarms and your allowed sites work now.";
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
         goHome();
+    }
+
+    private static String istTime(long millis) {
+        java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.US);
+        f.setTimeZone(java.util.TimeZone.getTimeZone("Asia/Kolkata"));
+        return f.format(new java.util.Date(millis));
     }
 
     private void openSite(String site) {
