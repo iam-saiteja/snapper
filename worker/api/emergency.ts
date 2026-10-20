@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SLEEP_UNLOCK } from '../../shared/schema'
 import { aiJson } from '../lib/ai'
 import { HttpError, body, buildDeviceState, db, getRules, handler, must, ok, requireUser } from '../lib/core'
 
@@ -6,17 +7,28 @@ const Decision = z.object({ approved: z.boolean(), minutes: z.number().int().min
 
 export const POST = handler(async (ctx) => {
   const userId = await requireUser(ctx)
-  const { package: pkg, explanation } = await body(
+  const { package: pkg, explanation, name } = await body(
     ctx,
-    z.object({ package: z.string(), explanation: z.string().min(10).max(4000) }),
+    z.object({
+      package: z.string().min(1).max(200),
+      name: z.string().max(100).optional(),
+      explanation: z.string().min(10).max(4000),
+    }),
   )
   const sb = db(ctx.env)
   const rules = await getRules(sb, userId)
-  const app =
-    rules.penaltyLock.find((a) => a.package === pkg) ??
-    rules.blocked.find((a) => a.package === pkg) ??
-    (pkg === 'com.android.settings' ? { name: 'Settings' } : null)
-  if (!app) throw new HttpError(400, 'unknown app')
+  // Category-locked apps are only known to the phone, so accept any package; the AI review and the
+  // weekly limit are what guard this, and every request is logged.
+  const app = {
+    name:
+      pkg === SLEEP_UNLOCK
+        ? 'Sleep mode (whole phone)'
+        : pkg === 'com.android.settings'
+          ? 'Settings'
+          : (rules.penaltyLock.find((a) => a.package === pkg) ?? rules.blocked.find((a) => a.package === pkg))?.name ??
+            name ??
+            pkg,
+  }
 
   const weekAgo = new Date(Date.now() - 7 * 86400_000).toISOString()
   const recent = must(

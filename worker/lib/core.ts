@@ -127,6 +127,12 @@ export async function buildDeviceState(sb: Db, userId: string): Promise<DeviceSt
     balance,
     blocked: rules.blocked,
     penaltyLocked: balance < 0 ? rules.penaltyLock : [],
+    blockCategories: rules.blockCategories,
+    categoryCostPer15Min: rules.categoryCostPer15Min,
+    penaltyLockedCategories: balance < 0 ? rules.penaltyLockCategories : [],
+    penaltyLockConfigured: { apps: rules.penaltyLock, categories: rules.penaltyLockCategories },
+    exceptApps: rules.exceptApps,
+    sleep: rules.sleep,
     unlocks: must(unlocks).map((u) => ({ package: u.package, endsAt: Date.parse(u.ends_at) })),
     reminders: must(reminders).map((r) => ({ id: r.id, at: Date.parse(r.remind_at), text: r.text })),
   }

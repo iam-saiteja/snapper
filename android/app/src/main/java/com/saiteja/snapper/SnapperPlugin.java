@@ -75,6 +75,38 @@ public class SnapperPlugin extends Plugin {
         r.put("exactAlarms", canExactAlarm());
         r.put("notifications", NotificationManagerCompat.from(getContext()).areNotificationsEnabled());
         r.put("hasDeviceToken", StateStore.deviceToken(getContext()) != null);
+        r.put("usageAccess", AppCatalog.hasUsageAccess(getContext()));
+        call.resolve(r);
+    }
+
+    @PluginMethod
+    public void openUsageAccessSettings(PluginCall call) {
+        if (!AppCatalog.hasUsageAccess(getContext())) {
+            StateStore.grantSetupGrace(getContext(), "usageAccess");
+            getActivity().startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+        }
+        call.resolve();
+    }
+
+    /** Installed apps with category, payment flag and today's screen time (if usage access is granted). */
+    @PluginMethod
+    public void listApps(PluginCall call) {
+        AppCatalog.invalidate();
+        java.util.Map<String, Long> usage = AppCatalog.usageToday(getContext());
+        com.getcapacitor.JSArray apps = new com.getcapacitor.JSArray();
+        for (AppCatalog.App a : AppCatalog.all(getContext())) {
+            JSObject o = new JSObject();
+            o.put("package", a.pkg);
+            o.put("name", a.name);
+            o.put("category", a.category);
+            o.put("payment", a.payment);
+            Long ms = usage.get(a.pkg);
+            o.put("usageMs", ms != null ? ms : 0);
+            apps.put(o);
+        }
+        JSObject r = new JSObject();
+        r.put("apps", apps);
+        r.put("usageAccess", AppCatalog.hasUsageAccess(getContext()));
         call.resolve(r);
     }
 

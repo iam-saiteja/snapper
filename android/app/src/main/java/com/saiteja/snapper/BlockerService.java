@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -52,6 +53,12 @@ public class BlockerService extends AccessibilityService {
         String pkg = event.getPackageName().toString();
         if (pkg.equals(getPackageName())) return;
 
+        long sleepUntil = SleepMode.activeUntil(this);
+        if (sleepUntil > 0 && sleepBlocks(pkg)) {
+            block("sleep:" + pkg, AppCatalog.label(this, pkg), BlockActivity.REASON_SLEEP, sleepUntil);
+            return;
+        }
+
         if (SELF_PROTECTED.contains(pkg)) {
             if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.getClassName() != null) {
                 lastSettingsClass = event.getClassName().toString();
@@ -60,16 +67,22 @@ public class BlockerService extends AccessibilityService {
             return;
         }
 
+        JSONObject state = StateStore.state(this);
+        JSONArray except = state.optJSONArray("exceptApps");
         JSONObject blocked = StateStore.find(this, "blocked", pkg);
         JSONObject penalty = StateStore.find(this, "penaltyLocked", pkg);
         boolean unlocked = StateStore.isUnlocked(this, pkg);
 
-        if (penalty != null && !unlocked) {
-            block("penalty:" + pkg, penalty.optString("name", pkg), BlockActivity.REASON_PENALTY);
+        if (!unlocked && (penalty != null ||
+                AppCatalog.inCategories(this, pkg, state.optJSONArray("penaltyLockedCategories"), except))) {
+            String name = penalty != null ? penalty.optString("name", pkg) : AppCatalog.label(this, pkg);
+            block("penalty:" + pkg, name, BlockActivity.REASON_PENALTY, 0);
             return;
         }
-        if (blocked != null && !unlocked) {
-            block("app:" + pkg, blocked.optString("name", pkg), BlockActivity.REASON_LOCKED);
+        if (!unlocked && (blocked != null ||
+                AppCatalog.inCategories(this, pkg, state.optJSONArray("blockCategories"), except))) {
+            String name = blocked != null ? blocked.optString("name", pkg) : AppCatalog.label(this, pkg);
+            block("app:" + pkg, name, BlockActivity.REASON_LOCKED, 0);
             return;
         }
 
@@ -94,7 +107,7 @@ public class BlockerService extends AccessibilityService {
         String grace = StateStore.activeGrace(this);
         // Setup screens: only the "activate device admin" screen, or anything briefly for alarm permission.
         if ("deviceAdmin".equals(grace) && lastSettingsClass.contains("DeviceAdminAdd")) return;
-        if ("exactAlarms".equals(grace)) return;
+        if ("exactAlarms".equals(grace) || "usageAccess".equals(grace)) return;
 
         long now = SystemClock.uptimeMillis();
         if (now - lastSettingsScan < 300) return;
@@ -106,7 +119,7 @@ public class BlockerService extends AccessibilityService {
         if (hits == null || hits.isEmpty()) return;
         if (!cooldownPassed("self:" + pkg)) return;
         performGlobalAction(GLOBAL_ACTION_BACK);
-        block("self", "Snapper settings", BlockActivity.REASON_SELF);
+        block("self", "Snapper settings", BlockActivity.REASON_SELF, 0);
     }
 
     private List<AccessibilityNodeInfo> focusedRoots() {
@@ -118,12 +131,41 @@ public class BlockerService extends AccessibilityService {
         return roots;
     }
 
-    private void block(String key, String name, String reason) {
+    /** During sleep: everything is blocked except calls/alarms/keyboard/home, allowApps, and Chrome on allowed sites. */
+    private boolean sleepBlocks(String pkg) {
+        if (SleepMode.isAllowed(this, pkg)) return false;
+        if (SELF_PROTECTED.contains(pkg)) return !StateStore.isUnlocked(this, SETTINGS);
+        if (SleepMode.CHROME.equals(pkg)) return !chromeOnAllowedSite();
+        return true;
+    }
+
+    private boolean chromeOnAllowedSite() {
+        JSONArray sites = SleepMode.allowedWebsites(this);
+        if (sites.length() == 0) return false;
+        if ("chromeSite".equals(StateStore.activeGrace(this))) return true; // just opened from the block screen
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return true;
+        List<AccessibilityNodeInfo> bars = root.findAccessibilityNodeInfosByViewId(SleepMode.CHROME + ":id/url_bar");
+        // Toolbar hidden (scrolled, fullscreen call): keep allowing; every navigation shows it again.
+        if (bars == null || bars.isEmpty()) return true;
+        AccessibilityNodeInfo bar = bars.get(0);
+        if (bar.isFocused()) return true; // typing an address
+        CharSequence text = bar.getText();
+        if (text == null) return false;
+        String shown = text.toString().toLowerCase();
+        for (int i = 0; i < sites.length(); i++) {
+            if (shown.contains(SleepMode.host(sites.optString(i)))) return true;
+        }
+        return false;
+    }
+
+    private void block(String key, String name, String reason, long until) {
         if (!cooldownPassed(key)) return;
         performGlobalAction(GLOBAL_ACTION_HOME);
         Intent i = new Intent(this, BlockActivity.class)
             .putExtra(BlockActivity.EXTRA_NAME, name)
             .putExtra(BlockActivity.EXTRA_REASON, reason)
+            .putExtra(BlockActivity.EXTRA_UNTIL, until)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(i);
     }

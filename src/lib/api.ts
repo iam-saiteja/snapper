@@ -39,11 +39,13 @@ export const api = {
   state: () => request<DeviceState>('/api/state'),
   startQuiz: (taskId: string) => post<{ quizId: string; questions: QuizQuestion[] }>('/api/quiz/start', { taskId }),
   answer: (quizId: string, index: number, answer: string) => post<Grade>('/api/quiz/answer', { quizId, index, answer }),
-  unlock: (pkg: string, minutes: number) => post<DeviceState>('/api/unlock', { package: pkg, minutes }),
-  emergency: (pkg: string, explanation: string) =>
+  unlock: (pkg: string, minutes: number, name?: string) =>
+    post<DeviceState>('/api/unlock', { package: pkg, minutes, name }),
+  emergency: (pkg: string, explanation: string, name?: string) =>
     post<{ approved: boolean; minutes: number; reason: string; state: DeviceState }>('/api/emergency', {
       package: pkg,
       explanation,
+      name,
     }),
   summarize: (url: string) => post<{ title: string; summary: string }>('/api/link/summarize', { url }),
   registerDevice: () => post<{ token: string }>('/api/device/register', {}),

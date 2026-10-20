@@ -1,15 +1,27 @@
 import { z } from 'zod'
+import { SLEEP_UNLOCK } from '../../shared/schema'
 import { addPoints, body, buildDeviceState, db, getBalance, getRules, handler, HttpError, maybe, must, requireUser } from '../lib/core'
 
 export const POST = handler(async (ctx) => {
   const userId = await requireUser(ctx)
-  const { package: pkg, minutes } = await body(
+  const { package: pkg, minutes, name } = await body(
     ctx,
-    z.object({ package: z.string(), minutes: z.number().int().refine((m) => m > 0 && m <= 120 && m % 15 === 0) }),
+    z.object({
+      package: z.string().min(1).max(200),
+      name: z.string().max(100).optional(),
+      minutes: z.number().int().refine((m) => m > 0 && m <= 120 && m % 15 === 0),
+    }),
   )
+  // Sleep mode and Settings only open through an AI-reviewed emergency, never with points.
+  if (pkg === SLEEP_UNLOCK || pkg === 'com.android.settings') throw new HttpError(400, 'use an emergency request for this')
   const sb = db(ctx.env)
-  const app = (await getRules(sb, userId)).blocked.find((b) => b.package === pkg)
-  if (!app) throw new HttpError(400, 'that app cannot be unlocked with points')
+  const rules = await getRules(sb, userId)
+  const explicit = rules.blocked.find((b) => b.package === pkg)
+  // Category-blocked apps are detected on the phone, so the server can't list them; any package
+  // not excepted may be unlocked at the category price (unlocking a non-blocked app gains nothing).
+  const byCategory = !explicit && rules.blockCategories.length > 0 && !rules.exceptApps.includes(pkg)
+  if (!explicit && !byCategory) throw new HttpError(400, 'that app cannot be unlocked with points')
+  const app = { name: explicit?.name ?? name ?? pkg, costPer15Min: explicit?.costPer15Min ?? rules.categoryCostPer15Min }
 
   const cost = app.costPer15Min * (minutes / 15)
   const balance = await getBalance(sb, userId)

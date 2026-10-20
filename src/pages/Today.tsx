@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { todayIST, type DeviceState } from '../../shared/schema'
+import { SLEEP_UNLOCK, todayIST, type DeviceState } from '../../shared/schema'
 import { api } from '../lib/api'
 import { rows, supabase, type LedgerRow, type Task } from '../lib/supabase'
 import { pushState } from '../lib/sync'
 import { listen } from '../lib/voice'
-import { isNative } from '../lib/native'
+import { isNative, Snapper, type InstalledApp } from '../lib/native'
+import { categoryBlocked, categoryPenalty } from '../lib/apps'
 
 export default function Today() {
   const [state, setState] = useState<DeviceState | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [ledger, setLedger] = useState<LedgerRow[]>([])
+  const [installed, setInstalled] = useState<InstalledApp[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -25,6 +27,7 @@ export default function Today() {
       setTasks(t)
       setLedger(l)
       await pushState(s)
+      if (isNative) setInstalled((await Snapper.listApps()).apps)
     } catch (e) {
       setError((e as Error).message)
     }
@@ -46,9 +49,9 @@ export default function Today() {
     }
   }
 
-  const unlock = (pkg: string, minutes: number) =>
+  const unlock = (pkg: string, minutes: number, name: string) =>
     run(async () => {
-      const s = await api.unlock(pkg, minutes)
+      const s = await api.unlock(pkg, minutes, name)
       setState(s)
       await pushState(s)
       await load()
@@ -65,9 +68,12 @@ export default function Today() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      {state.penaltyLocked.length > 0 && (
+      <SleepBanner state={state} />
+
+      {state.penaltyLocked.length + state.penaltyLockedCategories.length > 0 && (
         <section className="bad">
-          Negative points. Locked: {state.penaltyLocked.map((a) => a.name).join(', ')}. Finish tasks to get back above 0.
+          Negative points. Locked: {[...state.penaltyLocked.map((a) => a.name), ...state.penaltyLockedCategories].join(', ')}.
+          Finish tasks to get back to 0.
         </section>
       )}
 
@@ -94,7 +100,15 @@ export default function Today() {
       ))}
 
       <h2>Unlock with points</h2>
-      {state.blocked.map((b) => {
+      {[
+        ...state.blocked,
+        ...categoryBlocked(installed, state).map((a) => ({
+          package: a.package,
+          name: a.name,
+          costPer15Min: state.categoryCostPer15Min,
+          allowShortsWhenUnlocked: false,
+        })),
+      ].map((b) => {
         const until = unlockedUntil(b.package)
         return (
           <section key={b.package}>
@@ -104,19 +118,21 @@ export default function Today() {
             </div>
             <div className="row">
               {[15, 30, 60].map((m) => (
-                <button key={m} disabled={busy} onClick={() => unlock(b.package, m)}>
+                <button key={m} disabled={busy} onClick={() => unlock(b.package, m, b.name)}>
                   {m} min · {b.costPer15Min * (m / 15)} pts
                 </button>
               ))}
             </div>
-            <div className="muted">
-              {b.allowShortsWhenUnlocked ? 'Shorts/Reels allowed while unlocked.' : 'Shorts/Reels stay blocked even while unlocked.'}
-            </div>
+            {['com.instagram.android', 'com.google.android.youtube'].includes(b.package) && (
+              <div className="muted">
+                {b.allowShortsWhenUnlocked ? 'Shorts/Reels allowed while unlocked.' : 'Shorts/Reels stay blocked even while unlocked.'}
+              </div>
+            )}
           </section>
         )
       })}
 
-      <Emergency state={state} onDone={load} />
+      <Emergency state={state} installed={installed} onDone={load} />
 
       <h2>Points history</h2>
       {ledger.map((l) => (
@@ -129,12 +145,16 @@ export default function Today() {
   )
 }
 
-function Emergency({ state, onDone }: { state: DeviceState; onDone: () => void }) {
+function Emergency({ state, installed, onDone }: { state: DeviceState; installed: InstalledApp[]; onDone: () => void }) {
+  const seen = new Set<string>()
   const apps = [
+    ...(state.sleep.windows.length ? [{ package: SLEEP_UNLOCK, name: 'Sleep mode (whole phone)' }] : []),
     ...state.penaltyLocked,
+    ...categoryPenalty(installed, state).map((a) => ({ package: a.package, name: a.name })),
     ...state.blocked.map((b) => ({ package: b.package, name: b.name })),
+    ...categoryBlocked(installed, state).map((a) => ({ package: a.package, name: a.name })),
     { package: 'com.android.settings', name: 'Settings' },
-  ]
+  ].filter((a) => !seen.has(a.package) && seen.add(a.package))
   const [open, setOpen] = useState(false)
   const [pkg, setPkg] = useState(apps[0]?.package ?? '')
   const [text, setText] = useState('')
@@ -145,7 +165,7 @@ function Emergency({ state, onDone }: { state: DeviceState; onDone: () => void }
     setBusy(true)
     setResult('')
     try {
-      const r = await api.emergency(pkg, text)
+      const r = await api.emergency(pkg, text, apps.find((a) => a.package === pkg)?.name)
       await pushState(r.state)
       setResult(r.approved ? `Approved for ${r.minutes} min. ${r.reason}` : `Rejected. ${r.reason}`)
       onDone()
@@ -175,6 +195,33 @@ function Emergency({ state, onDone }: { state: DeviceState; onDone: () => void }
         <button onClick={() => setOpen(false)}>Cancel</button>
       </div>
       {result && <p>{result}</p>}
+    </section>
+  )
+}
+
+const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
+
+/** Same rule as the native blocker: a window belongs to the day it starts on (India time). */
+function activeSleepWindow(state: DeviceState) {
+  const ist = new Date(Date.now() + 5.5 * 3600_000)
+  const hhmm = ist.toISOString().slice(11, 16)
+  const today = DAYS[ist.getUTCDay()]
+  const yesterday = DAYS[(ist.getUTCDay() + 6) % 7]
+  return state.sleep.windows.find((w) => {
+    const on = (d: string) => !w.days.length || w.days.includes(d as never)
+    if (w.start < w.end) return hhmm >= w.start && hhmm < w.end && on(today)
+    return (hhmm >= w.start && on(today)) || (hhmm < w.end && on(yesterday))
+  })
+}
+
+function SleepBanner({ state }: { state: DeviceState }) {
+  if (!state.sleep.windows.length) return null
+  const active = activeSleepWindow(state)
+  const windows = state.sleep.windows.map((w) => `${w.start}–${w.end}`).join(', ')
+  return (
+    <section className={active ? 'bad' : 'muted'}>
+      {active ? `Sleep mode is on until ${active.end}.` : `Sleep mode: ${windows}.`} Only calls, alarms
+      {state.sleep.allowWebsites.length > 0 && ` and ${state.sleep.allowWebsites.join(', ')}`} work during sleep.
     </section>
   )
 }
