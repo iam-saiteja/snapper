@@ -29,10 +29,8 @@ public class BlockActivity extends Activity {
 
         String message;
         if (REASON_DNS.equals(reason)) {
-            message = "Content filter is on.
-Set Private DNS to " + DnsLock.requiredHost(this)
-                + " to use your phone.
-Settings → Network → Private DNS → Private DNS provider hostname.";
+            message = "Content filter is on.\nSet Private DNS to " + DnsLock.requiredHost(this)
+                + " to use your phone.\nSettings > Network > Private DNS > Private DNS provider hostname.";
         } else if (REASON_SLEEP.equals(reason)) {
             long until = getIntent().getLongExtra(EXTRA_UNTIL, 0);
             String time = until > 0 ? istTime(until) : "morning";
