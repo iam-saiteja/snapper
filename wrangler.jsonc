@@ -1,6 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "snapper",
+  // Pinned so wrangler commands from a different login fail instead of creating a Worker elsewhere.
+  "account_id": "6223f4755cd165d71614d9659c53c84c",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
