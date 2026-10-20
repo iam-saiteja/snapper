@@ -54,8 +54,16 @@ export default function Calendar() {
   const [from, to] = view === 'month' ? [grid[0], grid[41]] : [today, addDays(today, AGENDA_DAYS - 1)]
 
   useEffect(() => {
+    // Responses can arrive out of order when switching months/views quickly; only the latest request may apply.
+    let current = true
     setError('')
-    load(from, to).then(setData).catch((e) => setError(e.message))
+    setData({})
+    load(from, to)
+      .then((d) => current && setData(d))
+      .catch((e) => current && setError(e.message))
+    return () => {
+      current = false
+    }
   }, [from, to, version])
 
   const shiftMonth = (delta: number) =>
