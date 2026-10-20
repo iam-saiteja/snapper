@@ -4,12 +4,17 @@ import type { DeviceState } from '../../shared/schema'
 import { api } from '../lib/api'
 import { appStatus, formatMinutes, unlockedUntil, type AppStatus } from '../lib/apps'
 import { isNative, Snapper, type InstalledApp } from '../lib/native'
+import { supabase } from '../lib/supabase'
+import { syncBlocker } from '../lib/sync'
 
 const STATUS_LABEL: Record<AppStatus, string> = {
   unlocked: 'Unlocked',
   blocked: 'Blocked',
   penalty: 'Locked (negative points)',
   penaltyIfNegative: 'Locks if points < 0',
+  soft: 'Blocked by you',
+  untilTasks: 'Blocked until tasks done',
+  untilTasksDone: 'Tasks done: allowed today',
   allowed: 'Allowed',
 }
 
@@ -22,6 +27,7 @@ export default function Apps() {
   const [filter, setFilter] = useState('')
   const [category, setCategory] = useState('all')
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState('')
 
   const load = () =>
     Promise.all([Snapper.listApps(), api.state()])
@@ -39,6 +45,27 @@ export default function Apps() {
     const sub = CapApp.addListener('resume', load)
     return () => void sub.then((h) => h.remove())
   }, [])
+
+  // Your own blocks take effect immediately. 'soft' can be removed; 'until_tasks' can't (the database refuses).
+  async function setBlock(app: InstalledApp, mode: 'soft' | 'until_tasks' | null) {
+    setBusy(app.package)
+    setError('')
+    try {
+      if (mode) {
+        const { error } = await supabase.from('app_blocks').insert({ package: app.package, name: app.name, mode })
+        if (error) throw new Error(error.message)
+      } else {
+        const { data, error } = await supabase.from('app_blocks').delete().eq('package', app.package).select('id')
+        if (error) throw new Error(error.message)
+        if (!data?.length) throw new Error(`"Block until tasks" can't be removed. Finish today's tasks to use the app.`)
+      }
+      setState(await syncBlocker())
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
 
   if (!isNative) return <p className="muted">The Apps screen needs the Android app.</p>
   if (!state) return <p className="muted">{error || 'Loading…'}</p>
@@ -109,15 +136,57 @@ export default function Apps() {
               <span>
                 {a.category}{a.payment && ' · payments'} · <span style={{ userSelect: 'all' }}>{a.package}</span>
               </span>
-              <span className={status === 'allowed' || status === 'unlocked' ? 'ok' : status === 'penaltyIfNegative' ? 'muted' : 'bad'}>
+              <span
+                className={
+                  status === 'allowed' || status === 'unlocked' || status === 'untilTasksDone'
+                    ? 'ok'
+                    : status === 'penaltyIfNegative'
+                      ? 'muted'
+                      : 'bad'
+                }
+              >
                 {status === 'unlocked'
                   ? `Unlocked until ${new Date(unlockedUntil(a.package, state)).toLocaleTimeString()}`
                   : STATUS_LABEL[status]}
               </span>
             </div>
+            <BlockButtons app={a} state={state} busy={busy === a.package} onSet={setBlock} />
           </div>
         )
       })}
     </>
+  )
+}
+
+function BlockButtons(props: {
+  app: InstalledApp
+  state: DeviceState
+  busy: boolean
+  onSet: (app: InstalledApp, mode: 'soft' | 'until_tasks' | null) => void
+}) {
+  const { app, state, busy, onSet } = props
+  const mine = state.appBlocks.find((b) => b.package === app.package)
+  if (mine?.mode === 'until_tasks') return null // a commitment: no unblock button
+  if (mine?.mode === 'soft') {
+    return (
+      <div className="row">
+        <button disabled={busy} onClick={() => onSet(app, null)}>Unblock</button>
+      </div>
+    )
+  }
+  return (
+    <div className="row">
+      <button disabled={busy} onClick={() => onSet(app, 'soft')}>Block</button>
+      <button
+        disabled={busy}
+        onClick={() => {
+          if (confirm(`Block ${app.name} until your tasks are done each day? You won't be able to remove this block.`)) {
+            onSet(app, 'until_tasks')
+          }
+        }}
+      >
+        Block until tasks
+      </button>
+    </div>
   )
 }

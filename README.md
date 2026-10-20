@@ -11,6 +11,7 @@ Miss a deadline and you lose points. Go below zero and payment apps (PhonePe, CR
 - [Sleep mode](#sleep-mode)
 - [Content filter (DNS lock)](#content-filter-dns-lock)
 - [Asking the gatekeeper to unlock](#asking-the-gatekeeper-to-unlock)
+- [Blocking apps yourself (Apps tab)](#blocking-apps-yourself-apps-tab)
 - [Blocking whole app categories](#blocking-whole-app-categories)
 - [One JSON for everything](#one-json-for-everything)
 - [Installing on your phone](#installing-on-your-phone)
@@ -330,6 +331,20 @@ filter, Settings — goes through **Today → Ask to unlock**, a conversation wi
   manipulative reasons are refused. Genuine, time-sensitive needs (medical, safety, a payment due now) are approved
   for the fewest minutes needed.
 - Approved unlocks count toward `emergency.maxPerWeek`; denials don't. Everything is logged.
+
+---
+
+## Blocking apps yourself (Apps tab)
+
+Every app in the **Apps** tab has two buttons:
+
+| Button | What it does | Can you undo it? |
+|---|---|---|
+| **Block** | Blocks the app right away. | Yes: tap **Unblock** any time. |
+| **Block until tasks** | Blocks the app while any of today's tasks are still pending. Once they're all done, it's allowed for the rest of the day, and it's blocked again tomorrow. | **No.** It's a commitment. The database refuses to remove it. |
+
+These take effect immediately (unlike rules, which wait until tomorrow), because they only ever make things stricter
+or remove a block you chose to be removable. They can't be unlocked with points.
 
 ---
 

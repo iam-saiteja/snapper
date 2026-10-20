@@ -1,7 +1,7 @@
 import type { DeviceState } from '../../shared/schema'
 import type { InstalledApp } from './native'
 
-export type AppStatus = 'unlocked' | 'blocked' | 'penalty' | 'penaltyIfNegative' | 'allowed'
+export type AppStatus = 'unlocked' | 'blocked' | 'penalty' | 'penaltyIfNegative' | 'soft' | 'untilTasks' | 'untilTasksDone' | 'allowed'
 
 const inCategories = (app: InstalledApp, categories: string[], except: string[]) =>
   !except.includes(app.package) && categories.some((c) => (c === 'payments' ? app.payment : c === app.category))
@@ -16,6 +16,9 @@ export function appStatus(app: InstalledApp, s: DeviceState): AppStatus {
   if (s.blocked.some((b) => b.package === app.package) || inCategories(app, s.blockCategories, s.exceptApps)) {
     return 'blocked'
   }
+  const mine = s.appBlocks.find((b) => b.package === app.package)
+  if (mine?.mode === 'soft') return 'soft'
+  if (mine?.mode === 'until_tasks') return s.pendingTasksToday > 0 ? 'untilTasks' : 'untilTasksDone'
   const { apps, categories } = s.penaltyLockConfigured
   if (apps.some((p) => p.package === app.package) || inCategories(app, categories, s.exceptApps)) return 'penaltyIfNegative'
   return 'allowed'

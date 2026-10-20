@@ -20,6 +20,8 @@ public class BlockActivity extends Activity {
     static final String REASON_SELF = "self";
     static final String REASON_SLEEP = "sleep";
     static final String REASON_DNS = "dns";
+    static final String REASON_SOFT = "soft";
+    static final String REASON_UNTIL_TASKS = "until_tasks";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +37,10 @@ public class BlockActivity extends Activity {
             long until = getIntent().getLongExtra(EXTRA_UNTIL, 0);
             String time = until > 0 ? istTime(until) : "morning";
             message = "Sleep time until " + time + ".\nOnly calls, alarms and your allowed sites work now.";
+        } else if (REASON_SOFT.equals(reason)) {
+            message = name + " is blocked.\nYou blocked it yourself. Remove it in Snapper > Apps if you need it.";
+        } else if (REASON_UNTIL_TASKS.equals(reason)) {
+            message = name + " is blocked until today's tasks are done.\nFinish them in Snapper to use it.";
         } else if (REASON_PENALTY.equals(reason)) {
             message = name + " is locked because your points are negative.\nFinish your tasks to unlock it.";
         } else if (REASON_SELF.equals(reason)) {
