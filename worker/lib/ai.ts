@@ -2,7 +2,8 @@ import type { Env } from './core'
 
 type Part = { text: string } | { file_data: { file_uri: string } }
 
-// Free-tier first: Gemini Flash, then Groq if Gemini is rate-limited or fails.
+// Groq first: ~2s per call vs 40-90s for Gemini Flash (it spends a long time thinking).
+// Gemini goes first only when it must look at a file/video (Groq can't), and is the fallback otherwise.
 export async function aiJson<T>(
   env: Env,
   system: string,
@@ -10,8 +11,10 @@ export async function aiJson<T>(
   schema: { parse(v: unknown): T },
 ): Promise<T> {
   const parts: Part[] = typeof input === 'string' ? [{ text: input }] : input
+  const needsFiles = parts.some((p) => 'file_data' in p)
+  const providers = needsFiles ? [gemini, groq] : [groq, gemini]
   const errors: string[] = []
-  for (const call of [gemini, groq]) {
+  for (const call of providers) {
     try {
       const text = await call(env, system, parts)
       return schema.parse(JSON.parse(stripFences(text)))
@@ -31,10 +34,15 @@ async function gemini(env: Env, system: string, parts: Part[]): Promise<string> 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'x-goog-api-key': env.GEMINI_API, 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(60_000),
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts }],
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.4 },
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.4,
+        thinkingConfig: { thinkingLevel: 'low' },
+      },
     }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -50,6 +58,7 @@ async function groq(env: Env, system: string, parts: Part[]): Promise<string> {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.GROQ_API}`, 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(20_000),
     body: JSON.stringify({
       model: env.GROQ_MODEL ?? 'openai/gpt-oss-120b',
       temperature: 0.4,
@@ -75,6 +84,7 @@ export async function transcribe(env: Env, audio: Blob, filename: string): Promi
   const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.GROQ_API}` },
+    signal: AbortSignal.timeout(60_000),
     body: form,
   })
   if (!res.ok) throw new Error(`transcription failed: HTTP ${res.status}`)

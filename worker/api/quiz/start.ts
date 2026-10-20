@@ -1,11 +1,11 @@
 import { z } from 'zod'
 import { todayIST } from '../../../shared/schema'
-import { aiJson } from '../../_lib/ai'
-import { body, db, getRules, handler, HttpError, maybe, must, requireUser } from '../../_lib/core'
+import { aiJson } from '../../lib/ai'
+import { body, db, getRules, handler, HttpError, maybe, must, requireUser } from '../../lib/core'
 
 const Generated = z.object({ questions: z.array(z.object({ q: z.string(), answer: z.string() })).min(1) })
 
-export const onRequestPost = handler(async (ctx) => {
+export const POST = handler(async (ctx) => {
   const userId = await requireUser(ctx)
   const { taskId } = await body(ctx, z.object({ taskId: z.uuid() }))
   const sb = db(ctx.env)

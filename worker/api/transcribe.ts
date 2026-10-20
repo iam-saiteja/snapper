@@ -1,8 +1,8 @@
-import { transcribe } from '../_lib/ai'
-import { handler, HttpError, requireUser } from '../_lib/core'
+import { transcribe } from '../lib/ai'
+import { handler, HttpError, requireUser } from '../lib/core'
 
 // Audio passes through to Groq Whisper and is never stored server-side.
-export const onRequestPost = handler(async (ctx) => {
+export const POST = handler(async (ctx) => {
   await requireUser(ctx)
   const form = await ctx.request.formData()
   const file = form.get('file')
