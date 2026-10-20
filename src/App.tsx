@@ -7,6 +7,7 @@ import { isNative, Snapper } from './lib/native'
 import { ensureDeviceRegistered, syncBlocker } from './lib/sync'
 import Login from './pages/Login'
 import Today from './pages/Today'
+import Calendar from './pages/Calendar'
 import Quiz from './pages/Quiz'
 import Notes from './pages/Notes'
 import Reminders from './pages/Reminders'
@@ -51,6 +52,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Today />} />
+          <Route path="/calendar" element={<Calendar />} />
           <Route path="/quiz/:taskId" element={<Quiz />} />
           <Route path="/notes" element={<Notes />} />
           <Route path="/reminders" element={<Reminders />} />
@@ -61,6 +63,7 @@ export default function App() {
       </main>
       <nav>
         <NavLink to="/" end>Today</NavLink>
+        <NavLink to="/calendar">Calendar</NavLink>
         <NavLink to="/notes">Notes</NavLink>
         <NavLink to="/reminders">Remind</NavLink>
         <NavLink to="/links">Links</NavLink>
