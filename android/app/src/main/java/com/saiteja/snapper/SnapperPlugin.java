@@ -76,7 +76,21 @@ public class SnapperPlugin extends Plugin {
         r.put("notifications", NotificationManagerCompat.from(getContext()).areNotificationsEnabled());
         r.put("hasDeviceToken", StateStore.deviceToken(getContext()) != null);
         r.put("usageAccess", AppCatalog.hasUsageAccess(getContext()));
+        r.put("dnsLock", DnsLock.isLocked(getContext()));
+        r.put("dnsSet", DnsLock.isSet(getContext()));
+        r.put("dnsHost", DnsLock.requiredHost(getContext()));
         call.resolve(r);
+    }
+
+    @PluginMethod
+    public void openPrivateDnsSettings(PluginCall call) {
+        // No action to grant: Snapper never writes the DNS; the user sets it here.
+        try {
+            getActivity().startActivity(new Intent("android.settings.PRIVATE_DNS_SETTINGS"));
+        } catch (android.content.ActivityNotFoundException e) {
+            getActivity().startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS));
+        }
+        call.resolve();
     }
 
     @PluginMethod

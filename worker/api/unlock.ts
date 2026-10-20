@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SLEEP_UNLOCK } from '../../shared/schema'
+import { DNS_UNLOCK, SLEEP_UNLOCK } from '../../shared/schema'
 import { addPoints, body, buildDeviceState, db, getBalance, getRules, handler, HttpError, maybe, must, requireUser } from '../lib/core'
 
 export const POST = handler(async (ctx) => {
@@ -12,8 +12,8 @@ export const POST = handler(async (ctx) => {
       minutes: z.number().int().refine((m) => m > 0 && m <= 120 && m % 15 === 0),
     }),
   )
-  // Sleep mode and Settings only open through an AI-reviewed emergency, never with points.
-  if (pkg === SLEEP_UNLOCK || pkg === 'com.android.settings') throw new HttpError(400, 'use an emergency request for this')
+  // Sleep mode, the DNS lock and Settings only open through an AI-reviewed request, never with points.
+  if (pkg === SLEEP_UNLOCK || pkg === DNS_UNLOCK || pkg === 'com.android.settings') throw new HttpError(400, 'use an emergency request for this')
   const sb = db(ctx.env)
   const rules = await getRules(sb, userId)
   const explicit = rules.blocked.find((b) => b.package === pkg)

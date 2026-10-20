@@ -9,6 +9,8 @@ Miss a deadline and you lose points. Go below zero and payment apps (PhonePe, CR
 - [Generating a schedule with AI](#generating-a-schedule-with-ai)
 - [Blocking rules (JSON)](#blocking-rules-json)
 - [Sleep mode](#sleep-mode)
+- [Content filter (DNS lock)](#content-filter-dns-lock)
+- [Asking the gatekeeper to unlock](#asking-the-gatekeeper-to-unlock)
 - [Blocking whole app categories](#blocking-whole-app-categories)
 - [One JSON for everything](#one-json-for-everything)
 - [Installing on your phone](#installing-on-your-phone)
@@ -31,6 +33,7 @@ Miss a deadline and you lose points. Go below zero and payment apps (PhonePe, CR
 - **Quizzes:** the AI writes fresh questions from the task's `topic`. You answer by voice or text. Grading is strict, and vague answers fail. Each task allows 3 quiz attempts.
 - **Emergency unlock:** explain the problem, and the AI decides whether it's a real emergency. Unlocks last 20 minutes at most, you get 3 per week, and every request is logged.
 - **Sleep mode** locks the whole phone at night, except calls, alarms and the websites you allow.
+- **Content filter** (DNS lock) keeps the phone locked until you set AdGuard Family DNS, then enforces it.
 - **"Today" means India time (Asia/Kolkata).** Deadlines, dates, reminders and sleep times are all in IST.
 
 ### What you can and can't change
@@ -245,6 +248,7 @@ today; every later change applies from **tomorrow**, so you can't loosen the rul
     "allowApps": [],
     "allowWebsites": ["just-us-0kbw.onrender.com"]
   },
+  "dns": { "lock": true, "host": "family.adguard-dns.com" },
   "violationPenalty": 50,
   "maxQuizAttemptsPerTask": 3,
   "emergency": { "maxMinutes": 20, "maxPerWeek": 3 }
@@ -264,6 +268,7 @@ Every field is optional. Missing fields get their defaults, and missing lists ar
 | `penaltyLockCategories` | `[]` | Lock every installed app in these categories while points are below 0. |
 | `exceptApps` | `[]` | Packages never caught by `blockCategories` / `penaltyLockCategories`. |
 | `sleep` | none | Sleep schedule (see [Sleep mode](#sleep-mode)). |
+| `dns` | off | Content filter via Private DNS (see [Content filter](#content-filter-dns-lock)). |
 | `violationPenalty` | `50` | Points lost when the blocker is switched off after it was on. |
 | `maxQuizAttemptsPerTask` | `3` | Quiz retries allowed per task. |
 | `emergency.maxMinutes` / `maxPerWeek` | `20` / `3` | Limits for AI-approved emergency unlocks. |
@@ -289,6 +294,42 @@ During a sleep window, Snapper blocks **the whole phone** except:
 
 - Points can't unlock sleep mode. **Emergency → Sleep mode** asks the AI, and approved requests count toward the weekly limit.
 - Settings are blocked during sleep too, unless you have an emergency unlock for Settings.
+
+---
+
+## Content filter (DNS lock)
+
+`"dns": { "lock": true, "host": "family.adguard-dns.com" }` turns on an adult-content filter for the **whole phone**,
+in every app and browser, using Android's Private DNS with [AdGuard Family DNS](https://adguard-dns.io/).
+
+**Snapper never changes the DNS itself — you set it once:**
+
+1. When the lock is on and Private DNS isn't set, the phone is locked: only calls, alarms, the keyboard, the home screen and Settings work. The block screen has a **Set Private DNS** button.
+2. Go to **Settings → Network & internet → Private DNS → Private DNS provider hostname**, enter `family.adguard-dns.com`, and save.
+3. The phone unlocks. From then on Snapper watches the setting: if Private DNS is ever changed away from that host, you lose the violation penalty, it's logged, and the phone locks again until you set it back.
+
+The Private DNS settings screen is reachable (so you can set it), but turning the lock *off* only happens by [asking the gatekeeper](#asking-the-gatekeeper-to-unlock), and like all rule changes it takes effect the next day.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `dns.lock` | `false` | Turn the content filter on. |
+| `dns.host` | `family.adguard-dns.com` | The Private DNS hostname you must set. |
+
+---
+
+## Asking the gatekeeper to unlock
+
+Every unlock that isn't bought with points — a payment app while points are negative, sleep mode, the content
+filter, Settings — goes through **Today → Ask to unlock**, a conversation with an AI gatekeeper.
+
+- It's a back-and-forth: you explain, it can ask questions, then it approves (a short, logged unlock) or denies.
+- **It knows your history.** Before replying it sees your points, your task record, your past unlock requests and
+  how they were decided, and your rule violations. So it can say things like *"you asked for this two days ago and
+  it was refused"* or *"you changed the content-filter DNS last week, the filter stays on."*
+- It's strict by design, and strictest about the content filter and sleep mode. Boredom, cravings and vague or
+  manipulative reasons are refused. Genuine, time-sensitive needs (medical, safety, a payment due now) are approved
+  for the fewest minutes needed.
+- Approved unlocks count toward `emergency.maxPerWeek`; denials don't. Everything is logged.
 
 ---
 
@@ -353,7 +394,7 @@ and exact alarms yourself, in the **Setup** tab. Everything else is in the JSON.
 
 1. Download the latest **snapper-apk** artifact from [GitHub Actions](https://github.com/iam-saiteja/snapper/actions) (open the newest run on `main` and look under "Artifacts"). Unzip it and install `app-release.apk`.
 2. Sign in, then turn off new sign-ups in Supabase → Authentication.
-3. **Setup** tab: turn on Accessibility, Device admin, Notifications, Exact alarms, Usage access and Background sync.
+3. **Setup** tab: turn on Accessibility, Device admin, Notifications, Exact alarms, Usage access and Background sync. If the content filter is on, set Private DNS to the host it shows.
    - On Android 13+, if the Accessibility switch is greyed out ("Restricted setting"), go to Settings → Apps → Snapper → ⋮ → **Allow restricted settings**.
 4. **Admin** tab: save the rules, then import your schedule.
 

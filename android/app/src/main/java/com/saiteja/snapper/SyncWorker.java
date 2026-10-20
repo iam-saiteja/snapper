@@ -40,6 +40,7 @@ public class SyncWorker extends Worker {
         Context c = getApplicationContext();
         boolean a11y = SnapperPlugin.isAccessibilityEnabled(c);
         if (!a11y) nag(c);
+        boolean dnsOk = DnsLock.isSet(c);
 
         String token = StateStore.deviceToken(c);
         String base = StateStore.apiBase(c);
@@ -47,7 +48,7 @@ public class SyncWorker extends Worker {
 
         HttpURLConnection conn = null;
         try {
-            conn = (HttpURLConnection) new URL(base + "/api/device/state?a11y=" + (a11y ? 1 : 0)).openConnection();
+            conn = (HttpURLConnection) new URL(base + "/api/device/state?a11y=" + (a11y ? 1 : 0) + "&dns=" + (dnsOk ? 1 : 0)).openConnection();
             conn.setConnectTimeout(15_000);
             conn.setReadTimeout(15_000);
             conn.setRequestProperty("x-device-token", token);

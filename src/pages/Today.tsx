@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { SLEEP_UNLOCK, todayIST, type DeviceState } from '../../shared/schema'
+import { DNS_UNLOCK, SLEEP_UNLOCK, todayIST, type DeviceState } from '../../shared/schema'
 import { api } from '../lib/api'
 import { rows, supabase, type LedgerRow, type Task } from '../lib/supabase'
 import { pushState } from '../lib/sync'
@@ -69,6 +69,7 @@ export default function Today() {
       {error && <p className="error">{error}</p>}
 
       <SleepBanner state={state} />
+      <DnsBanner state={state} />
 
       {state.penaltyLocked.length + state.penaltyLockedCategories.length > 0 && (
         <section className="bad">
@@ -145,56 +146,109 @@ export default function Today() {
   )
 }
 
+type ChatMsg = { role: 'user' | 'assistant'; content: string }
+
+// A conversation with the gatekeeper AI, which holds the user's full history before deciding.
 function Emergency({ state, installed, onDone }: { state: DeviceState; installed: InstalledApp[]; onDone: () => void }) {
   const seen = new Set<string>()
   const apps = [
     ...(state.sleep.windows.length ? [{ package: SLEEP_UNLOCK, name: 'Sleep mode (whole phone)' }] : []),
+    ...(state.dns.lock ? [{ package: DNS_UNLOCK, name: 'Content filter (Private DNS)' }] : []),
     ...state.penaltyLocked,
     ...categoryPenalty(installed, state).map((a) => ({ package: a.package, name: a.name })),
     ...state.blocked.map((b) => ({ package: b.package, name: b.name })),
     ...categoryBlocked(installed, state).map((a) => ({ package: a.package, name: a.name })),
     { package: 'com.android.settings', name: 'Settings' },
   ].filter((a) => !seen.has(a.package) && seen.add(a.package))
+
   const [open, setOpen] = useState(false)
   const [pkg, setPkg] = useState(apps[0]?.package ?? '')
+  const [chatId, setChatId] = useState<string | undefined>()
+  const [messages, setMessages] = useState<ChatMsg[]>([])
+  const [status, setStatus] = useState<'open' | 'approved' | 'denied'>('open')
   const [text, setText] = useState('')
-  const [result, setResult] = useState('')
+  const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function submit() {
+  function reset(nextPkg = pkg) {
+    setPkg(nextPkg)
+    setChatId(undefined)
+    setMessages([])
+    setStatus('open')
+    setText('')
+    setError('')
+  }
+
+  async function send() {
+    const message = text.trim()
+    if (!message) return
     setBusy(true)
-    setResult('')
+    setError('')
+    setMessages((m) => [...m, { role: 'user', content: message }])
+    setText('')
     try {
-      const r = await api.emergency(pkg, text, apps.find((a) => a.package === pkg)?.name)
-      await pushState(r.state)
-      setResult(r.approved ? `Approved for ${r.minutes} min. ${r.reason}` : `Rejected. ${r.reason}`)
-      onDone()
+      const r = await api.unlockChat(pkg, message, chatId, apps.find((a) => a.package === pkg)?.name)
+      setChatId(r.chatId)
+      setStatus(r.status)
+      setMessages((m) => [...m, { role: 'assistant', content: r.reply }])
+      if (r.status !== 'open') {
+        await pushState(r.state)
+        onDone()
+      }
     } catch (e) {
-      setResult((e as Error).message)
+      setError((e as Error).message)
     } finally {
       setBusy(false)
     }
   }
 
-  if (!open) return <button onClick={() => setOpen(true)}>Emergency unlock…</button>
+  if (!open) return <button onClick={() => setOpen(true)}>Ask to unlock…</button>
   return (
     <section>
-      <h2>Emergency</h2>
-      <p className="muted">Explain the problem. The AI decides if it is a real emergency. Every request is logged.</p>
-      <select value={pkg} onChange={(e) => setPkg(e.target.value)}>
+      <h2>Ask to unlock</h2>
+      <p className="muted">Talk to the gatekeeper. It knows your history and decides. Every request is logged.</p>
+      <select
+        value={pkg}
+        disabled={messages.length > 0}
+        onChange={(e) => reset(e.target.value)}
+      >
         {apps.map((a) => (
           <option key={a.package} value={a.package}>{a.name}</option>
         ))}
       </select>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="What is the emergency?" />
-      <div className="row">
-        {isNative && (
-          <button disabled={busy} onClick={async () => setText(`${text} ${await listen()}`.trim())}>🎤 Speak</button>
-        )}
-        <button className="primary" disabled={busy || text.trim().length < 10} onClick={submit}>Ask</button>
-        <button onClick={() => setOpen(false)}>Cancel</button>
-      </div>
-      {result && <p>{result}</p>}
+
+      {messages.map((m, i) => (
+        <p key={i} className={m.role === 'user' ? '' : 'muted'}>
+          <b>{m.role === 'user' ? 'You' : 'Gatekeeper'}:</b> {m.content}
+        </p>
+      ))}
+      {status === 'approved' && <p className="ok"><b>Unlocked.</b></p>}
+      {status === 'denied' && <p className="bad"><b>Denied.</b></p>}
+      {error && <p className="error">{error}</p>}
+
+      {status === 'open' ? (
+        <>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={messages.length ? 'Reply…' : 'Why do you need this?'}
+          />
+          <div className="row">
+            {isNative && (
+              <button disabled={busy} onClick={async () => setText(`${text} ${await listen()}`.trim())}>🎤 Speak</button>
+            )}
+            <button className="primary" disabled={busy || !text.trim()} onClick={send}>
+              {busy ? 'Thinking…' : messages.length ? 'Reply' : 'Ask'}
+            </button>
+            <button onClick={() => { reset(); setOpen(false) }}>Close</button>
+          </div>
+        </>
+      ) : (
+        <div className="row">
+          <button onClick={() => reset()}>Ask about something else</button>
+          <button onClick={() => { reset(); setOpen(false) }}>Close</button>
+        </div>
+      )}
     </section>
   )
 }
@@ -212,6 +266,16 @@ function activeSleepWindow(state: DeviceState) {
     if (w.start < w.end) return hhmm >= w.start && hhmm < w.end && on(today)
     return (hhmm >= w.start && on(today)) || (hhmm < w.end && on(yesterday))
   })
+}
+
+function DnsBanner({ state }: { state: DeviceState }) {
+  if (!state.dns.lock) return null
+  return (
+    <section className="muted">
+      Content filter on: set Private DNS to <b>{state.dns.host}</b> (Settings → Network → Private DNS). The phone
+      stays locked until it is set, and the setting can't be changed without asking the gatekeeper.
+    </section>
+  )
 }
 
 function SleepBanner({ state }: { state: DeviceState }) {
