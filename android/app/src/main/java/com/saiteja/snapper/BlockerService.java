@@ -105,6 +105,12 @@ public class BlockerService extends AccessibilityService {
         boolean windowChanged = event == null || event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
         if (SleepMode.CHROME.equals(pkg) && event != null && windowChanged) chromeVerdict = null;
 
+        // DNS lock: until the user sets Private DNS, allow only essentials and setting the DNS itself.
+        if (DnsLock.enforcing(this) && dnsBlocks(pkg)) {
+            block("dns:" + pkg, AppCatalog.label(this, pkg), BlockActivity.REASON_DNS, 0);
+            return;
+        }
+
         long sleepUntil = SleepMode.activeUntil(this);
         if (sleepUntil > 0 && sleepBlocks(pkg)) {
             block("sleep:" + pkg, AppCatalog.label(this, pkg), BlockActivity.REASON_SLEEP, sleepUntil);
@@ -180,6 +186,11 @@ public class BlockerService extends AccessibilityService {
         }
         if (roots.isEmpty() && getRootInActiveWindow() != null) roots.add(getRootInActiveWindow());
         return roots;
+    }
+
+    /** DNS lock: allow essentials and the Settings app (so the user can set Private DNS), block everything else. */
+    private boolean dnsBlocks(String pkg) {
+        return !SleepMode.isEssential(this, pkg) && !SELF_PROTECTED.contains(pkg);
     }
 
     /** During sleep: everything is blocked except calls/alarms/keyboard/home, allowApps, and Chrome on allowed sites. */

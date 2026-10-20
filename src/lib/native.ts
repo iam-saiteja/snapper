@@ -8,6 +8,9 @@ export type NativeStatus = {
   notifications: boolean
   hasDeviceToken: boolean
   usageAccess: boolean
+  dnsLock: boolean
+  dnsSet: boolean
+  dnsHost: string
 }
 
 export type InstalledApp = { package: string; name: string; category: string; payment: boolean; usageMs: number }
@@ -26,6 +29,7 @@ interface SnapperPlugin {
   consumeSharedText(): Promise<{ text: string | null }>
   listApps(): Promise<{ apps: InstalledApp[]; usageAccess: boolean; categoriesSupported: boolean }>
   openUsageAccessSettings(): Promise<void>
+  openPrivateDnsSettings(): Promise<void>
   addListener(event: 'shared', cb: (e: { text: string }) => void): Promise<PluginListenerHandle>
 }
 
@@ -39,6 +43,9 @@ const WebStub: SnapperPlugin = {
     notifications: false,
     hasDeviceToken: false,
     usageAccess: false,
+    dnsLock: false,
+    dnsSet: false,
+    dnsHost: 'family.adguard-dns.com',
   }),
   openAccessibilitySettings: async () => {},
   requestDeviceAdmin: async () => {},
@@ -51,6 +58,7 @@ const WebStub: SnapperPlugin = {
   consumeSharedText: async () => ({ text: null }),
   listApps: async () => ({ apps: [], usageAccess: false, categoriesSupported: true }),
   openUsageAccessSettings: async () => {},
+  openPrivateDnsSettings: async () => {},
   addListener: async () => ({ remove: async () => {} }),
 }
 

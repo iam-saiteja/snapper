@@ -109,6 +109,10 @@ export const Rules = z.object({
   // Never matched by blockCategories / penaltyLockCategories.
   exceptApps: z.array(z.string()).default([]),
   sleep: Sleep.default({ windows: [], allowApps: [], allowWebsites: [] }),
+  // Content filter: the phone stays locked until Private DNS is set to this host, and that setting is locked.
+  dns: z
+    .object({ lock: z.boolean().default(false), host: z.string().min(3).default('family.adguard-dns.com') })
+    .default({ lock: false, host: 'family.adguard-dns.com' }),
   violationPenalty: z.number().int().min(0).default(50),
   maxQuizAttemptsPerTask: z.number().int().min(1).default(3),
   emergency: z
@@ -137,13 +141,15 @@ export const DEFAULT_RULES: Rules = {
   penaltyLockCategories: ['payments'],
   exceptApps: ['com.whatsapp', 'com.whatsapp.w4b'],
   sleep: { windows: [], allowApps: [], allowWebsites: [] },
+  dns: { lock: false, host: 'family.adguard-dns.com' },
   violationPenalty: 50,
   maxQuizAttemptsPerTask: 3,
   emergency: { maxMinutes: 20, maxPerWeek: 3 },
 }
 
-// Pseudo-package for an emergency unlock of sleep mode.
+// Pseudo-packages for AI-reviewed unlocks of sleep mode and the DNS lock (never unlockable with points).
 export const SLEEP_UNLOCK = 'snapper:sleep'
+export const DNS_UNLOCK = 'snapper:dns'
 
 // What the native blocker needs. Built on the server so the phone can't compute its own way out.
 export type DeviceState = {
@@ -159,6 +165,7 @@ export type DeviceState = {
   penaltyLockConfigured: { apps: { package: string; name: string }[]; categories: AppCategory[] }
   exceptApps: string[]
   sleep: Sleep
+  dns: { lock: boolean; host: string }
   unlocks: { package: string; endsAt: number }[]
   reminders: { id: string; at: number; text: string }[]
 }
