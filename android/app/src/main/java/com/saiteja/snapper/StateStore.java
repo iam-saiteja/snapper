@@ -112,7 +112,11 @@ public final class StateStore {
     // ---- short grace window so setup screens in Settings aren't blocked while being turned on ----
 
     public static void grantSetupGrace(Context c, String kind) {
-        prefs(c).edit().putLong("graceUntil", System.currentTimeMillis() + 90_000).putString("graceKind", kind).apply();
+        grantGrace(c, kind, 90_000);
+    }
+
+    public static void grantGrace(Context c, String kind, long ms) {
+        prefs(c).edit().putLong("graceUntil", System.currentTimeMillis() + ms).putString("graceKind", kind).apply();
     }
 
     public static String activeGrace(Context c) {

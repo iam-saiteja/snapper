@@ -14,6 +14,7 @@ import Reminders from './pages/Reminders'
 import Links from './pages/Links'
 import Admin from './pages/Admin'
 import Setup from './pages/Setup'
+import Apps from './pages/Apps'
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/reminders" element={<Reminders />} />
           <Route path="/links" element={<Links />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/apps" element={<Apps />} />
           <Route path="/setup" element={<Setup />} />
         </Routes>
       </main>
@@ -67,6 +69,7 @@ export default function App() {
         <NavLink to="/notes">Notes</NavLink>
         <NavLink to="/reminders">Remind</NavLink>
         <NavLink to="/links">Links</NavLink>
+        <NavLink to="/apps">Apps</NavLink>
         <NavLink to="/admin">Admin</NavLink>
         <NavLink to="/setup">Setup</NavLink>
       </nav>

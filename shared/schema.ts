@@ -37,7 +37,9 @@ export const ReminderInput = z.object({
 // Admin import format. Days are either absolute ("date") or relative to "start" ("day": 1 = start).
 export const PlanImport = z
   .object({
-    plan: z.string().min(1),
+    plan: z.string().min(1).default('Plan'),
+    // Optional: blocking/sleep rules saved together with the schedule (they take effect tomorrow).
+    rules: z.lazy(() => Rules).optional(),
     start: z.iso.date().optional(),
     days: z
       .array(
@@ -48,7 +50,7 @@ export const PlanImport = z
           reminders: z.array(ReminderInput).default([]),
         }),
       )
-      .min(1),
+      .default([]),
   })
   .superRefine((p, ctx) => {
     p.days.forEach((d, i) => {
@@ -72,10 +74,41 @@ export const BlockedApp = z.object({
   allowShortsWhenUnlocked: z.boolean().default(false),
 })
 
+// Android app categories as detected on the phone. "payments" = apps that can open UPI payment links.
+export const AppCategory = z.enum(['social', 'video', 'games', 'audio', 'image', 'news', 'maps', 'productivity', 'payments'])
+export type AppCategory = z.infer<typeof AppCategory>
+
+export const Weekday = z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+const ALL_DAYS = Weekday.options
+
+export const SleepWindow = z.object({
+  start: hhmm,
+  end: hhmm,
+  // The days on which the window *starts* (23:00 Fri → 06:30 Sat is a "fri" window).
+  days: z.array(Weekday).default([...ALL_DAYS]),
+})
+
+export const Sleep = z.object({
+  windows: z.array(SleepWindow).default([]),
+  // Allowed during sleep on top of calls, clock/alarms, keyboard and the home screen.
+  allowApps: z.array(z.string()).default([]),
+  // Chrome is allowed only while it shows one of these sites (host or URL).
+  allowWebsites: z.array(z.string()).default([]),
+})
+export type Sleep = z.infer<typeof Sleep>
+
 export const Rules = z.object({
-  blocked: z.array(BlockedApp),
+  blocked: z.array(BlockedApp).default([]),
   // Locked while the point balance is below zero.
-  penaltyLock: z.array(z.object({ package: z.string(), name: z.string() })),
+  penaltyLock: z.array(z.object({ package: z.string(), name: z.string() })).default([]),
+  // Every installed app in these categories is blocked like "blocked" (unlock with points).
+  blockCategories: z.array(AppCategory).default([]),
+  categoryCostPer15Min: z.number().int().min(1).default(10),
+  // Every installed app in these categories is locked while points are below zero.
+  penaltyLockCategories: z.array(AppCategory).default([]),
+  // Never matched by blockCategories / penaltyLockCategories.
+  exceptApps: z.array(z.string()).default([]),
+  sleep: Sleep.default({ windows: [], allowApps: [], allowWebsites: [] }),
   violationPenalty: z.number().int().min(0).default(50),
   maxQuizAttemptsPerTask: z.number().int().min(1).default(3),
   emergency: z
@@ -99,10 +132,18 @@ export const DEFAULT_RULES: Rules = {
     { package: 'com.google.android.apps.nbu.paisa.user', name: 'Google Pay' },
     { package: 'net.one97.paytm', name: 'Paytm' },
   ],
+  blockCategories: ['social'],
+  categoryCostPer15Min: 10,
+  penaltyLockCategories: ['payments'],
+  exceptApps: ['com.whatsapp', 'com.whatsapp.w4b'],
+  sleep: { windows: [], allowApps: [], allowWebsites: [] },
   violationPenalty: 50,
   maxQuizAttemptsPerTask: 3,
   emergency: { maxMinutes: 20, maxPerWeek: 3 },
 }
+
+// Pseudo-package for an emergency unlock of sleep mode.
+export const SLEEP_UNLOCK = 'snapper:sleep'
 
 // What the native blocker needs. Built on the server so the phone can't compute its own way out.
 export type DeviceState = {
@@ -110,6 +151,14 @@ export type DeviceState = {
   balance: number
   blocked: { package: string; name: string; costPer15Min: number; allowShortsWhenUnlocked: boolean }[]
   penaltyLocked: { package: string; name: string }[]
+  blockCategories: AppCategory[]
+  categoryCostPer15Min: number
+  // Only non-empty while the balance is below zero.
+  penaltyLockedCategories: AppCategory[]
+  // What locks when the balance goes below zero (for display).
+  penaltyLockConfigured: { apps: { package: string; name: string }[]; categories: AppCategory[] }
+  exceptApps: string[]
+  sleep: Sleep
   unlocks: { package: string; endsAt: number }[]
   reminders: { id: string; at: number; text: string }[]
 }

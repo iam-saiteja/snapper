@@ -28,6 +28,8 @@ export default function Admin() {
   const [status, setStatus] = useState('')
   const [future, setFuture] = useState<Task[]>([])
   const [busy, setBusy] = useState(false)
+  // Bumped when an import saves rules, so the rules editor reloads instead of showing stale rules.
+  const [rulesVersion, setRulesVersion] = useState(0)
   const tomorrow = addDays(todayIST(), 1)
 
   const load = () =>
@@ -68,7 +70,9 @@ export default function Admin() {
         const { error } = await supabase.from('reminders').insert(reminders.slice(i, i + CHUNK))
         if (error) throw new Error(`reminders: ${error.message}`)
       }
-      setStatus(`Imported ${tasks.length} tasks and ${reminders.length} reminders.`)
+      const rulesNote = plan.rules ? ` Rules saved, effective ${await saveRules(plan.rules)}.` : ''
+      if (plan.rules) setRulesVersion((v) => v + 1)
+      setStatus(`Imported ${tasks.length} tasks and ${reminders.length} reminders.${rulesNote}`)
       setJson('')
       await load()
     } catch (e) {
@@ -101,6 +105,7 @@ export default function Admin() {
       <p className="muted">You can add or remove tasks from tomorrow ({tomorrow}) onwards. Today and the past are locked.</p>
 
       <h2>Import plan (JSON)</h2>
+      <p className="muted">Schedule, reminders and (optionally) "rules" in one file. See the README for every option.</p>
       <input
         type="file"
         accept="application/json,.json"
@@ -132,12 +137,21 @@ export default function Admin() {
         </section>
       ))}
 
-      <RulesEditor />
+      <RulesEditor key={rulesVersion} />
     </>
   )
 }
 
 // Rules are insert-only and take effect tomorrow, so you can't loosen them in a weak moment today.
+// The very first rules apply today. Returns the effective date.
+async function saveRules(rules: Rules): Promise<string> {
+  const { count } = await supabase.from('rules').select('id', { count: 'exact', head: true })
+  const effective = count ? addDays(todayIST(), 1) : todayIST()
+  const { error } = await supabase.from('rules').insert({ effective_date: effective, rules })
+  if (error) throw new Error(error.message)
+  return effective
+}
+
 function RulesEditor() {
   const [current, setCurrent] = useState<{ effective_date: string; rules: unknown } | null>(null)
   const [text, setText] = useState('')
@@ -161,10 +175,7 @@ function RulesEditor() {
     try {
       const parsed = Rules.safeParse(JSON.parse(text))
       if (!parsed.success) throw new Error(parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('\n'))
-      // The very first rules apply today; every later change applies from tomorrow.
-      const effective = current ? addDays(todayIST(), 1) : todayIST()
-      const { error } = await supabase.from('rules').insert({ effective_date: effective, rules: parsed.data })
-      if (error) throw new Error(error.message)
+      const effective = await saveRules(parsed.data)
       setCurrent({ effective_date: effective, rules: parsed.data })
       setStatus(`Saved. Takes effect ${effective}.`)
     } catch (e) {

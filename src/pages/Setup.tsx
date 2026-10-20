@@ -24,6 +24,7 @@ export default function Setup() {
     ['Uninstall protection (Device admin)', status.deviceAdmin, Snapper.requestDeviceAdmin, 'Makes Snapper hard to remove'],
     ['Notifications', status.notifications, Snapper.requestNotifications, 'Needed for reminders'],
     ['Exact alarms', status.exactAlarms, Snapper.requestExactAlarms, 'Reminders ring on time'],
+    ['Usage access (screen time)', status.usageAccess, Snapper.openUsageAccessSettings, 'Per-app screen time, like Digital Wellbeing'],
   ]
 
   return (
