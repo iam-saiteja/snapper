@@ -41,12 +41,11 @@ export const api = {
   answer: (quizId: string, index: number, answer: string) => post<Grade>('/api/quiz/answer', { quizId, index, answer }),
   unlock: (pkg: string, minutes: number, name?: string) =>
     post<DeviceState>('/api/unlock', { package: pkg, minutes, name }),
-  emergency: (pkg: string, explanation: string, name?: string) =>
-    post<{ approved: boolean; minutes: number; reason: string; state: DeviceState }>('/api/emergency', {
-      package: pkg,
-      explanation,
-      name,
-    }),
+  unlockChat: (pkg: string, message: string, chatId?: string, name?: string) =>
+    post<{ chatId: string; reply: string; status: 'open' | 'approved' | 'denied'; minutes: number; state: DeviceState }>(
+      '/api/unlock-chat',
+      { package: pkg, message, chatId, name },
+    ),
   summarize: (url: string) => post<{ title: string; summary: string }>('/api/link/summarize', { url }),
   registerDevice: () => post<{ token: string }>('/api/device/register', {}),
   transcribe: (audio: Blob, filename: string) => {

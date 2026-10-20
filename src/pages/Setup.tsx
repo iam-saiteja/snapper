@@ -25,6 +25,9 @@ export default function Setup() {
     ['Notifications', status.notifications, Snapper.requestNotifications, 'Needed for reminders'],
     ['Exact alarms', status.exactAlarms, Snapper.requestExactAlarms, 'Reminders ring on time'],
     ['Usage access (screen time)', status.usageAccess, Snapper.openUsageAccessSettings, 'Per-app screen time, like Digital Wellbeing'],
+    ...(status.dnsLock
+      ? [['Content filter (Private DNS)', status.dnsSet, Snapper.openPrivateDnsSettings, `Set Private DNS to ${status.dnsHost}`] as [string, boolean, () => Promise<void>, string]]
+      : []),
   ]
 
   return (

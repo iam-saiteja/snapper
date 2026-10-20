@@ -8,12 +8,14 @@ import * as quizStart from './api/quiz/start'
 import * as state from './api/state'
 import * as transcribe from './api/transcribe'
 import * as unlock from './api/unlock'
+import * as unlockChat from './api/unlock-chat'
 
 const routes: Record<string, { GET?: Route; POST?: Route }> = {
   '/api/state': state,
   '/api/quiz/start': quizStart,
   '/api/quiz/answer': quizAnswer,
   '/api/unlock': unlock,
+  '/api/unlock-chat': unlockChat,
   '/api/emergency': emergency,
   '/api/transcribe': transcribe,
   '/api/link/summarize': linkSummarize,

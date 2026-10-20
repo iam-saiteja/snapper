@@ -19,6 +19,7 @@ public class BlockActivity extends Activity {
     static final String REASON_PENALTY = "penalty";
     static final String REASON_SELF = "self";
     static final String REASON_SLEEP = "sleep";
+    static final String REASON_DNS = "dns";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,7 +28,12 @@ public class BlockActivity extends Activity {
         String reason = getIntent().getStringExtra(EXTRA_REASON);
 
         String message;
-        if (REASON_SLEEP.equals(reason)) {
+        if (REASON_DNS.equals(reason)) {
+            message = "Content filter is on.
+Set Private DNS to " + DnsLock.requiredHost(this)
+                + " to use your phone.
+Settings → Network → Private DNS → Private DNS provider hostname.";
+        } else if (REASON_SLEEP.equals(reason)) {
             long until = getIntent().getLongExtra(EXTRA_UNTIL, 0);
             String time = until > 0 ? istTime(until) : "morning";
             message = "Sleep time until " + time + ".\nOnly calls, alarms and your allowed sites work now.";
@@ -51,6 +57,20 @@ public class BlockActivity extends Activity {
         text.setTextSize(20);
         text.setGravity(Gravity.CENTER);
         layout.addView(text);
+
+        if (REASON_DNS.equals(reason)) {
+            Button dns = new Button(this);
+            dns.setText("Set Private DNS");
+            dns.setOnClickListener(v -> {
+                try {
+                    startActivity(new Intent("android.settings.PRIVATE_DNS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                } catch (android.content.ActivityNotFoundException e) {
+                    startActivity(new Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                }
+                finish();
+            });
+            layout.addView(dns);
+        }
 
         if (REASON_SLEEP.equals(reason)) {
             Button call = new Button(this);
