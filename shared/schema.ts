@@ -166,6 +166,9 @@ export type DeviceState = {
   exceptApps: string[]
   sleep: Sleep
   dns: { lock: boolean; host: string }
+  // User's own blocks from the Apps tab. 'soft' = removable; 'until_tasks' = blocked while tasks pending.
+  appBlocks: { package: string; name: string; mode: 'soft' | 'until_tasks' }[]
+  pendingTasksToday: number
   unlocks: { package: string; endsAt: number }[]
   reminders: { id: string; at: number; text: string }[]
 }

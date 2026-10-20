@@ -38,13 +38,22 @@ public class SyncWorker extends Worker {
     @Override
     public Result doWork() {
         Context c = getApplicationContext();
-        boolean a11y = SnapperPlugin.isAccessibilityEnabled(c);
-        if (!a11y) nag(c);
-        boolean dnsOk = DnsLock.isSet(c);
+        if (!SnapperPlugin.isAccessibilityEnabled(c)) nag(c);
+        Boolean ok = syncNow(c);
+        return ok == null || ok ? Result.success() : Result.retry();
+    }
 
+    /**
+     * Report blocker/DNS status and save fresh blocker state (points, locks, unlocks, reminders).
+     * Also called from the blocker service every few minutes, because WorkManager can be deferred for hours.
+     * @return true on success, false on a retryable failure, null when there is nothing to do
+     */
+    static Boolean syncNow(Context c) {
         String token = StateStore.deviceToken(c);
         String base = StateStore.apiBase(c);
-        if (token == null || base == null) return Result.success();
+        if (token == null || base == null) return null;
+        boolean a11y = SnapperPlugin.isAccessibilityEnabled(c);
+        boolean dnsOk = DnsLock.isSet(c);
 
         HttpURLConnection conn = null;
         try {
@@ -53,12 +62,12 @@ public class SyncWorker extends Worker {
             conn.setReadTimeout(15_000);
             conn.setRequestProperty("x-device-token", token);
             int code = conn.getResponseCode();
-            if (code == 401) return Result.success();
-            if (code != 200) return Result.retry();
+            if (code == 401) return null;
+            if (code != 200) return false;
             StateStore.saveState(c, new JSONObject(read(conn.getInputStream())));
-            return Result.success();
+            return true;
         } catch (Exception e) {
-            return Result.retry();
+            return false;
         } finally {
             if (conn != null) conn.disconnect();
         }

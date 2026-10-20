@@ -46,9 +46,11 @@ public class BlockerService extends AccessibilityService {
 
     private static final long COOLDOWN_MS = 1500;
     private static final long RECHECK_MS = 15_000;
+    private static final long SYNC_MS = 5 * 60_000;
 
     private final Map<String, Long> lastAction = new HashMap<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final java.util.concurrent.ExecutorService io = java.util.concurrent.Executors.newSingleThreadExecutor();
     private long lastSettingsScan = 0;
     private String lastSettingsClass = "";
     // Last verdict from a visible Chrome address bar; null = not verified since Chrome's window changed.
@@ -60,6 +62,15 @@ public class BlockerService extends AccessibilityService {
             AccessibilityNodeInfo root = getRootInActiveWindow();
             if (root != null && root.getPackageName() != null) evaluate(root.getPackageName().toString(), null);
             handler.postDelayed(this, RECHECK_MS);
+        }
+    };
+
+    // The service is always running, unlike WorkManager, so it keeps points/penalty locks fresh.
+    private final Runnable sync = new Runnable() {
+        @Override
+        public void run() {
+            io.execute(() -> SyncWorker.syncNow(getApplicationContext()));
+            handler.postDelayed(this, SYNC_MS);
         }
     };
 
@@ -82,11 +93,13 @@ public class BlockerService extends AccessibilityService {
         f.addDataScheme("package");
         registerReceiver(packagesChanged, f);
         handler.postDelayed(recheck, RECHECK_MS);
+        handler.post(sync);
     }
 
     @Override
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        io.shutdownNow();
         try {
             unregisterReceiver(packagesChanged);
         } catch (IllegalArgumentException ignored) {}
@@ -144,6 +157,18 @@ public class BlockerService extends AccessibilityService {
             return;
         }
 
+        // The user's own blocks from the Apps tab. 'soft' always blocks (removable in the app);
+        // 'until_tasks' blocks only while today still has pending tasks.
+        JSONObject appBlock = findAppBlock(state, pkg);
+        if (appBlock != null) {
+            boolean untilTasks = "until_tasks".equals(appBlock.optString("mode"));
+            if (!untilTasks || state.optInt("pendingTasksToday", 0) > 0) {
+                String reason = untilTasks ? BlockActivity.REASON_UNTIL_TASKS : BlockActivity.REASON_SOFT;
+                block("mine:" + pkg, appBlock.optString("name", pkg), reason, 0);
+                return;
+            }
+        }
+
         if (!ShortsDetectors.hasDetector(pkg)) return;
         if (blocked != null && unlocked && blocked.optBoolean("allowShortsWhenUnlocked", false)) return;
         boolean relevant = windowChanged ||
@@ -177,6 +202,16 @@ public class BlockerService extends AccessibilityService {
         if (!cooldownPassed("self:" + pkg)) return;
         performGlobalAction(GLOBAL_ACTION_BACK);
         block("self", "Snapper settings", BlockActivity.REASON_SELF, 0);
+    }
+
+    private JSONObject findAppBlock(JSONObject state, String pkg) {
+        JSONArray arr = state.optJSONArray("appBlocks");
+        if (arr == null) return null;
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject o = arr.optJSONObject(i);
+            if (o != null && pkg.equals(o.optString("package"))) return o;
+        }
+        return null;
     }
 
     private List<AccessibilityNodeInfo> focusedRoots() {

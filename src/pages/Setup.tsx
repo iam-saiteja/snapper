@@ -54,7 +54,15 @@ export default function Setup() {
           <button className="primary" onClick={() => ensureDeviceRegistered().then(refresh).catch((e) => setMsg(e.message))}>Turn on</button>
         )}
       </section>
-      <button onClick={() => syncBlocker().then(() => setMsg('Synced.')).catch((e) => setMsg(e.message))}>Sync now</button>
+      <section>
+        <b>What the blocker is enforcing</b>
+        <div className="muted">
+          {status.blockerSyncedAt
+            ? `Last synced ${Math.max(0, Math.round((Date.now() - status.blockerSyncedAt) / 60000))} min ago · points ${status.blockerBalance} · ${status.blockerPenaltyLocked} payment apps locked`
+            : 'Never synced: only the built-in defaults (Instagram, YouTube) are blocked.'}
+        </div>
+      </section>
+      <button onClick={() => syncBlocker().then(() => refresh()).then(() => setMsg('Synced.')).catch((e) => setMsg(e.message))}>Sync now</button>
       <button onClick={() => supabase.auth.signOut()}>Sign out</button>
       {msg && <p className="muted">{msg}</p>}
     </>

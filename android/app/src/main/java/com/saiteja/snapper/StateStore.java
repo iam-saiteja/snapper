@@ -36,6 +36,7 @@ public final class StateStore {
             .putLong("syncServerTime", state.optLong("serverTime", System.currentTimeMillis()))
             .putLong("syncElapsed", SystemClock.elapsedRealtime())
             .putInt("syncBoot", bootCount(c))
+            .putLong("syncedAt", System.currentTimeMillis())
             .apply();
         Reminders.syncFromState(c, state.optJSONArray("reminders"));
     }
@@ -103,6 +104,11 @@ public final class StateStore {
 
     public static String deviceToken(Context c) {
         return prefs(c).getString("deviceToken", null);
+    }
+
+    /** Wall-clock time of the last saved state, 0 if never (blocker is on built-in defaults). */
+    public static long syncedAt(Context c) {
+        return prefs(c).getLong("syncedAt", 0);
     }
 
     public static String apiBase(Context c) {

@@ -111,7 +111,8 @@ export async function addPoints(sb: Db, userId: string, delta: number, reason: s
 export async function buildDeviceState(sb: Db, userId: string): Promise<DeviceState> {
   const now = new Date()
   const in48h = new Date(now.getTime() + 48 * 3600_000)
-  const [rules, balance, unlocks, reminders] = await Promise.all([
+  const today = todayIST()
+  const [rules, balance, unlocks, reminders, appBlocks, pendingTasks] = await Promise.all([
     getRules(sb, userId),
     getBalance(sb, userId),
     sb.from('unlocks').select('package, ends_at').eq('user_id', userId).gt('ends_at', now.toISOString()),
@@ -121,6 +122,8 @@ export async function buildDeviceState(sb: Db, userId: string): Promise<DeviceSt
       .eq('user_id', userId)
       .gt('remind_at', now.toISOString())
       .lt('remind_at', in48h.toISOString()),
+    sb.from('app_blocks').select('package, name, mode').eq('user_id', userId),
+    sb.from('tasks').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('task_date', today).eq('status', 'pending'),
   ])
   return {
     serverTime: now.getTime(),
@@ -134,6 +137,8 @@ export async function buildDeviceState(sb: Db, userId: string): Promise<DeviceSt
     exceptApps: rules.exceptApps,
     sleep: rules.sleep,
     dns: rules.dns,
+    appBlocks: must(appBlocks),
+    pendingTasksToday: pendingTasks.count ?? 0,
     unlocks: must(unlocks).map((u) => ({ package: u.package, endsAt: Date.parse(u.ends_at) })),
     reminders: must(reminders).map((r) => ({ id: r.id, at: Date.parse(r.remind_at), text: r.text })),
   }

@@ -11,6 +11,9 @@ export type NativeStatus = {
   dnsLock: boolean
   dnsSet: boolean
   dnsHost: string
+  blockerSyncedAt: number
+  blockerBalance: number
+  blockerPenaltyLocked: number
 }
 
 export type InstalledApp = { package: string; name: string; category: string; payment: boolean; usageMs: number }
@@ -46,6 +49,9 @@ const WebStub: SnapperPlugin = {
     dnsLock: false,
     dnsSet: false,
     dnsHost: 'family.adguard-dns.com',
+    blockerSyncedAt: 0,
+    blockerBalance: 0,
+    blockerPenaltyLocked: 0,
   }),
   openAccessibilitySettings: async () => {},
   requestDeviceAdmin: async () => {},
