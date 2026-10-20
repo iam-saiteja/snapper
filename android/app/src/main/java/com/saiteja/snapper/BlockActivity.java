@@ -38,11 +38,9 @@ public class BlockActivity extends Activity {
             String time = until > 0 ? istTime(until) : "morning";
             message = "Sleep time until " + time + ".\nOnly calls, alarms and your allowed sites work now.";
         } else if (REASON_SOFT.equals(reason)) {
-            message = name + " is blocked.
-You blocked it yourself. Remove it in Snapper > Apps if you need it.";
+            message = name + " is blocked.\nYou blocked it yourself. Remove it in Snapper > Apps if you need it.";
         } else if (REASON_UNTIL_TASKS.equals(reason)) {
-            message = name + " is blocked until today's tasks are done.
-Finish them in Snapper to use it.";
+            message = name + " is blocked until today's tasks are done.\nFinish them in Snapper to use it.";
         } else if (REASON_PENALTY.equals(reason)) {
             message = name + " is locked because your points are negative.\nFinish your tasks to unlock it.";
         } else if (REASON_SELF.equals(reason)) {
