@@ -19,25 +19,12 @@ jobs:
 
       - run: npm ci
 
-      - name: Type-check server functions
-        run: npx tsc -p functions/tsconfig.json
+      - name: Type-check Worker
+        run: npx tsc -p worker/tsconfig.json
 
-      - name: Check config
-        run: |
-          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY VITE_API_BASE; do
-            if [ -z "${!v}" ]; then echo "::error::Repository variable for $v is not set"; exit 1; fi
-          done
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_API_BASE: ${{ vars.SNAPPER_API_BASE }}
-
+      # Public client config comes from the committed .env.production.
       - name: Build web app
         run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_API_BASE: ${{ vars.SNAPPER_API_BASE }}
 
       - run: npx cap sync android
 

@@ -1,8 +1,8 @@
-import { HttpError, addPoints, buildDeviceState, db, getRules, handler, maybe, ok, sha256Hex } from '../../_lib/core'
+import { HttpError, addPoints, buildDeviceState, db, getRules, handler, maybe, ok, sha256Hex } from '../../lib/core'
 
 // Called by the native background worker every ~15 minutes. Reports whether the
 // blocker (accessibility service) is still on; switching it off costs points.
-export const onRequestGet = handler(async (ctx) => {
+export const GET = handler(async (ctx) => {
   const token = ctx.request.headers.get('x-device-token')
   if (!token) throw new HttpError(401, 'missing device token')
   const sb = db(ctx.env)

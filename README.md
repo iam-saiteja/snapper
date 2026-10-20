@@ -14,27 +14,21 @@ and locks payment apps when your points go negative.
 
 | Path | What |
 |---|---|
-| `src/` | React app (also served on Cloudflare Pages as the admin panel) |
+| `src/` | React app (also served by the Cloudflare Worker as the web/admin panel) |
 | `shared/schema.ts` | Plan/rules JSON schema shared by app and server |
-| `functions/api/` | Cloudflare Pages Functions: quiz, grading, unlocks, emergency, transcription, device sync |
+| `worker/` | Cloudflare Worker: `/api/*` (quiz, grading, unlocks, emergency, transcription, device sync); everything else is static assets from `dist/` |
 | `supabase/migrations/` | Database schema, row-level security and the missed-deadline penalty job |
 | `android/app/src/main/java/com/saiteja/snapper/` | Native blocker (AccessibilityService), reminders, background sync |
 
 ## Configuration
 
-Cloudflare Pages (Settings → Variables and secrets):
-
-| Name | Kind |
-|---|---|
-| `GEMINI_API`, `GROQ_API`, `SUPABASE_SECRET_KEY` | secret |
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | variable (build + runtime) |
-
-Build command `npm run build`, output directory `dist`.
-
-GitHub repository variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SNAPPER_API_BASE`
-(the Pages URL). Secrets: `SNAPPER_KEYSTORE_B64`, `SNAPPER_KEYSTORE_PASSWORD`, `SNAPPER_KEY_ALIAS`, `SNAPPER_KEY_PASSWORD`.
-
-The APK is built by GitHub Actions on every PR (artifact `snapper-apk`).
+- **Public client config** (Supabase URL, publishable key, API URL) is committed in `.env.production`.
+- **Cloudflare Worker** `snapper` (`wrangler.jsonc`) is deployed by Workers Builds on push to `main`
+  (build `npm run build`, deploy `npx wrangler deploy`). Secrets, set with `wrangler secret put <NAME> --name snapper`:
+  `GEMINI_API`, `GROQ_API`, `SUPABASE_SECRET_KEY`.
+- **AI**: Groq (`openai/gpt-oss-120b`, Whisper) first, ~2s per call; Gemini Flash as fallback and for YouTube summaries.
+- **GitHub Actions** builds a signed APK on every PR (artifact `snapper-apk`). Secrets: `SNAPPER_KEYSTORE_B64`,
+  `SNAPPER_KEYSTORE_PASSWORD`, `SNAPPER_KEY_ALIAS`, `SNAPPER_KEY_PASSWORD`.
 
 ## Credits
 

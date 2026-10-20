@@ -15,7 +15,8 @@ export interface Env {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Db = SupabaseClient<any>
 
-export type Ctx = EventContext<Env, string, Record<string, unknown>>
+export type Ctx = { request: Request; env: Env }
+export type Route = (ctx: Ctx) => Promise<Response>
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -26,7 +27,7 @@ export class HttpError extends Error {
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
-export function handler(fn: (ctx: Ctx) => Promise<unknown>): PagesFunction<Env> {
+export function handler(fn: (ctx: Ctx) => Promise<unknown>): Route {
   return async (ctx) => {
     try {
       const out = await fn(ctx)

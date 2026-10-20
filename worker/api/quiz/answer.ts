@@ -1,11 +1,11 @@
 import { z } from 'zod'
 import { todayIST } from '../../../shared/schema'
-import { aiJson } from '../../_lib/ai'
-import { HttpError, addPoints, body, db, getBalance, handler, maybe, must, ok, requireUser } from '../../_lib/core'
+import { aiJson } from '../../lib/ai'
+import { HttpError, addPoints, body, db, getBalance, handler, maybe, must, ok, requireUser } from '../../lib/core'
 
 const Grade = z.object({ correct: z.boolean(), feedback: z.string() })
 
-export const onRequestPost = handler(async (ctx) => {
+export const POST = handler(async (ctx) => {
   const userId = await requireUser(ctx)
   const input = await body(
     ctx,

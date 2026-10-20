@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { aiJson } from '../../_lib/ai'
-import { body, handler, requireUser } from '../../_lib/core'
+import { aiJson } from '../../lib/ai'
+import { body, handler, requireUser } from '../../lib/core'
 
 const Summary = z.object({ title: z.string(), summary: z.string() })
 const SYSTEM =
@@ -10,7 +10,7 @@ const SYSTEM =
 const META_RE =
   /<meta[^>]+(?:property|name)=["'](og:title|og:description|description|twitter:title|twitter:description)["'][^>]*content=["']([^"']*)["']/gi
 
-export const onRequestPost = handler(async (ctx) => {
+export const POST = handler(async (ctx) => {
   await requireUser(ctx)
   const { url } = await body(ctx, z.object({ url: z.url() }))
 

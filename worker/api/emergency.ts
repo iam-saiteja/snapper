@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { aiJson } from '../_lib/ai'
-import { HttpError, body, buildDeviceState, db, getRules, handler, must, ok, requireUser } from '../_lib/core'
+import { aiJson } from '../lib/ai'
+import { HttpError, body, buildDeviceState, db, getRules, handler, must, ok, requireUser } from '../lib/core'
 
 const Decision = z.object({ approved: z.boolean(), minutes: z.number().int().min(0), reason: z.string() })
 
-export const onRequestPost = handler(async (ctx) => {
+export const POST = handler(async (ctx) => {
   const userId = await requireUser(ctx)
   const { package: pkg, explanation } = await body(
     ctx,

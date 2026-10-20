@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { addPoints, body, buildDeviceState, db, getBalance, getRules, handler, HttpError, maybe, must, requireUser } from '../_lib/core'
+import { addPoints, body, buildDeviceState, db, getBalance, getRules, handler, HttpError, maybe, must, requireUser } from '../lib/core'
 
-export const onRequestPost = handler(async (ctx) => {
+export const POST = handler(async (ctx) => {
   const userId = await requireUser(ctx)
   const { package: pkg, minutes } = await body(
     ctx,
