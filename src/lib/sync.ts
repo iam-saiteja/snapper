@@ -14,8 +14,16 @@ export async function pushState(state: DeviceState) {
   await Snapper.setState({ state })
 }
 
+let registering: Promise<void> | null = null
+
 /** One-time: give the background worker its own token so blocking keeps updating when the app is closed. */
-export async function ensureDeviceRegistered() {
+export function ensureDeviceRegistered(): Promise<void> {
+  // Sign-in fires several session events at once; share one registration between them.
+  registering ??= register().finally(() => (registering = null))
+  return registering
+}
+
+async function register() {
   if (!isNative) return
   const status = await Snapper.getStatus()
   if (status.hasDeviceToken) return
