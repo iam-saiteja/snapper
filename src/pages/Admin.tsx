@@ -105,7 +105,7 @@ export default function Admin() {
       <p className="muted">You can add or remove tasks from tomorrow ({tomorrow}) onwards. Today and the past are locked.</p>
 
       <h2>Import plan (JSON)</h2>
-      <p className="muted">Schedule, reminders and (optionally) "rules" in one file. See the README for every option.</p>
+      <p className="muted">Schedule, reminders and (optionally) "rules" in one file. Every option is in docs/configuration.md in the GitHub repo.</p>
       <input
         type="file"
         accept="application/json,.json"
