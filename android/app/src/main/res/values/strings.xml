@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Snapper</string>
+    <string name="title_activity_main">Snapper</string>
+    <string name="package_name">com.saiteja.snapper</string>
+    <string name="custom_url_scheme">com.saiteja.snapper</string>
+    <string name="accessibility_description">Snapper blocks Instagram, YouTube, Shorts, Reels and other apps you chose until you finish your tasks. It only reads which app is open and screen element ids; nothing is sent anywhere.</string>
+</resources>
