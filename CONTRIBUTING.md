@@ -15,8 +15,8 @@ Thanks for helping. Pull requests are welcome directly; open one against `main`.
    ```
 
 4. Open the PR against `main` and fill in the template: what, why, and how you tested it.
-   The `Build APK` check (Worker type-check + signed APK build) must pass. Forks don't have the signing
-   secrets, so on a fork's PR the signing step may fail. That's expected, and a maintainer will run it.
+   The `Build APK` check (Worker type-check + APK build) must pass. Pull requests from forks don't get the
+   signing secrets, so they build a debug APK instead. That still compiles and checks everything.
 
 ## Conventions
 
@@ -36,7 +36,8 @@ Thanks for helping. Pull requests are welcome directly; open one against `main`.
 
 ## Security
 
-Never commit keys or `.env` files (they're git-ignored; `.env.production` holds public values only).
+Never commit keys, `.env` files or anyone's deployment values (URLs, account IDs). Every deployment's settings
+live in its own Cloudflare Worker secrets and GitHub repository variable; the code must keep working without them.
 Report vulnerabilities privately through GitHub security advisories, not public issues.
 
 ## Reporting bugs

@@ -79,35 +79,42 @@ npm install
 
 ### 3. Server (Cloudflare Worker)
 
-1. In `wrangler.jsonc`, set `account_id` to your Cloudflare account ID (`npx wrangler whoami` shows it) and
-   `vars.SUPABASE_URL` to your Supabase URL.
-2. Log in and add the three secrets:
+There are **no config files to edit**: your copy's settings live in your own Cloudflare, Supabase and GitHub
+accounts, so updates from this repo never touch them.
+
+1. Log in, deploy once, then add the five secrets to your Worker:
 
    ```bash
    npx wrangler login
-   npx wrangler secret put GEMINI_API           # Google AI Studio key
-   npx wrangler secret put GROQ_API             # Groq key
-   npx wrangler secret put SUPABASE_SECRET_KEY  # Supabase secret key (sb_secret_…)
+   npm run build && npx wrangler deploy
+   npx wrangler secret put SUPABASE_URL              # https://<project>.supabase.co
+   npx wrangler secret put SUPABASE_PUBLISHABLE_KEY  # sb_publishable_…
+   npx wrangler secret put SUPABASE_SECRET_KEY       # sb_secret_… (never put this anywhere else)
+   npx wrangler secret put GEMINI_API                # Google AI Studio key
+   npx wrangler secret put GROQ_API                  # Groq key
    ```
 
-3. Deploy with `npm run build && npx wrangler deploy`, or connect the repo in **Workers & Pages → Create → Import
-   a repository** (build command `npm run build`, deploy command `npx wrangler deploy`) so every push to `main`
-   deploys.
+   The app loads the Supabase URL and publishable key from your Worker at startup (`/api/config`).
+2. Note your Worker's address (`https://snapper.<your-subdomain>.workers.dev`). Opening it in a browser shows the
+   app, which also works as a web admin panel.
+3. Optional: to deploy automatically on every push to `main`, connect your repo in **Workers & Pages → Create →
+   Import a repository** (build command `npm run build`, deploy command `npx wrangler deploy`).
 
-### 4. App config
+### 4. Point the Android build at your Worker
 
-Edit `.env.production` with **your** values. These are public by design; never put secrets here.
+In your GitHub repo, go to **Settings → Secrets and variables → Actions → Variables** and add:
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-VITE_API_BASE=https://snapper.<your-subdomain>.workers.dev
-```
+| Variable | Value |
+|---|---|
+| `SNAPPER_API_BASE` | your Worker's address, e.g. `https://snapper.<your-subdomain>.workers.dev` |
+
+That's the only setting the APK needs.
 
 ### 5. Build the APK
 
-The `Build APK` workflow signs and builds the app on every pull request and push to `main`. It needs a signing
-key, which must stay the same forever (Android only installs updates signed with the same key):
+The `Build APK` workflow runs on every pull request and push to `main`. Without signing secrets it builds a
+**debug** APK (fine for trying it out). For daily use, add a signing key, which must stay the same forever
+(Android only installs updates signed with the same key):
 
 ```bash
 keytool -genkeypair -keystore snapper-release.jks -storetype PKCS12 -alias snapper \
@@ -124,7 +131,8 @@ Actions):
 | `SNAPPER_KEY_ALIAS` | `snapper` |
 | `SNAPPER_KEY_PASSWORD` | key password |
 
-Push to `main`, open the workflow run, and download **snapper-apk** from "Artifacts".
+Push to `main`, open the workflow run, and download **snapper-apk-release** (or **snapper-apk-debug**) from
+"Artifacts".
 
 ### 6. Set up the phone
 
@@ -148,9 +156,23 @@ npm run typecheck                    # app types
 npx tsc -p worker/tsconfig.json      # Worker types
 ```
 
-For `wrangler dev`, put the three secrets in a `.dev.vars` file (git-ignored) as `NAME=value` lines.
+For `wrangler dev`, put the five Worker secrets in a `.dev.vars` file (git-ignored) as `NAME=value` lines.
+For `npm run dev`, copy `.env.example` to `.env.development.local` so the app talks to the local Worker.
 Native (Android) code compiles in CI; to build locally you need the Android SDK: `npm run sync`, then
 `cd android && ./gradlew assembleDebug`.
+
+## Keeping your copy up to date
+
+Your deployment is your own repo (a fork, or a private copy). Because none of your settings are in the files,
+pulling updates is conflict-free:
+
+```bash
+git remote add upstream https://github.com/iam-saiteja/snapper.git   # once
+git pull upstream main && git push                                    # whenever you want the latest
+```
+
+On a fork, GitHub's **Sync fork** button does the same. Your Worker redeploys (if connected) and the APK rebuilds.
+If an update adds a database migration, run the new file from `supabase/migrations/` in the SQL Editor.
 
 ## Contributing
 

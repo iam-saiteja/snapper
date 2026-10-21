@@ -1,10 +1,8 @@
-import { Capacitor } from '@capacitor/core'
 import type { DeviceState } from '../../shared/schema'
+import { API_BASE } from './config'
 import { supabase } from './supabase'
 
-// On the web (Cloudflare Pages) the API is same-origin; inside the Android app it must be absolute.
-export const API_BASE: string =
-  import.meta.env.VITE_API_BASE ?? (Capacitor.isNativePlatform() ? 'https://snapper.pages.dev' : '')
+export { API_BASE }
 
 async function authHeader(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession()
