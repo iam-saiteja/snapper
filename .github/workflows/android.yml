@@ -22,9 +22,12 @@ jobs:
       - name: Type-check Worker
         run: npx tsc -p worker/tsconfig.json
 
-      # Public client config comes from the committed .env.production.
+      # The only build-time setting: where the Android app sends /api requests. Everything else
+      # (Supabase URL and publishable key) the app loads from that Worker at startup.
       - name: Build web app
         run: npm run build
+        env:
+          VITE_API_BASE: ${{ vars.SNAPPER_API_BASE }}
 
       - run: npx cap sync android
 
@@ -34,7 +37,19 @@ jobs:
           java-version: 21
           cache: gradle
 
+      # Signed release APK when this repository has the signing secrets (your own deployment).
+      # Otherwise (forks, contributors' pull requests) a debug APK, so the code is still compiled and checked.
+      - name: Decide build type
+        id: kind
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$API_BASE" ]; then echo "type=release" >> "$GITHUB_OUTPUT"; else echo "type=debug" >> "$GITHUB_OUTPUT"; fi
+          if [ -z "$API_BASE" ]; then echo "::warning::SNAPPER_API_BASE is not set, so this APK can't reach a server. Set it in Settings > Secrets and variables > Actions > Variables."; fi
+        env:
+          KEYSTORE_B64: ${{ secrets.SNAPPER_KEYSTORE_B64 }}
+          API_BASE: ${{ vars.SNAPPER_API_BASE }}
+
       - name: Decode signing key
+        if: steps.kind.outputs.type == 'release'
         run: |
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "SNAPPER_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
@@ -42,6 +57,7 @@ jobs:
           KEYSTORE_B64: ${{ secrets.SNAPPER_KEYSTORE_B64 }}
 
       - name: Build signed APK
+        if: steps.kind.outputs.type == 'release'
         working-directory: android
         run: bash ./gradlew assembleRelease --no-daemon
         env:
@@ -49,8 +65,13 @@ jobs:
           SNAPPER_KEY_ALIAS: ${{ secrets.SNAPPER_KEY_ALIAS }}
           SNAPPER_KEY_PASSWORD: ${{ secrets.SNAPPER_KEY_PASSWORD }}
 
+      - name: Build debug APK
+        if: steps.kind.outputs.type == 'debug'
+        working-directory: android
+        run: bash ./gradlew assembleDebug --no-daemon
+
       - uses: actions/upload-artifact@v4
         with:
-          name: snapper-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: snapper-apk-${{ steps.kind.outputs.type }}
+          path: android/app/build/outputs/apk/${{ steps.kind.outputs.type }}/app-${{ steps.kind.outputs.type }}.apk
           if-no-files-found: error
