@@ -55,19 +55,18 @@ export default function Admin() {
       const reminders: object[] = []
       // Read "today" now, not when the page was opened (it may have stayed open past midnight).
       const today = todayIST()
-      const indiaTime = (msFromNow: number) => new Date(Date.now() + msFromNow + 5.5 * 3600_000).toISOString().slice(11, 16)
       // Same-day items need 15 minutes' lead time: the phone has to sync to set the alarm, and today's tasks
       // can't be removed, so a batch must never fail halfway because a deadline passed during the import.
-      const soon = indiaTime(LEAD_MS)
-      const dayAlmostOver = soon < indiaTime(0) // now + 15 min is already tomorrow
-      const tooSoon = (hhmm: string) => dayAlmostOver || hhmm < soon
+      // Compared as full timestamps, so 12:15 isn't accepted at 12:00:30 (only 14.5 minutes away).
+      const earliest = Date.now() + LEAD_MS
+      const tooSoon = (date: string, hhmm: string) => Date.parse(`${date}T${hhmm}:00+05:30`) < earliest
       let skippedReminders = 0
       for (const d of plan.days) {
         const date = resolveDayDate(plan, d)
         if (date < today) throw new Error(`${date}: that day is over. You can schedule from today (${today}) onwards`)
         for (const t of d.tasks) {
           if (t.quiz.passScore > t.quiz.questions) throw new Error(`${date} "${t.title}": passScore > questions`)
-          if (date === today && tooSoon(t.deadline)) {
+          if (date === today && tooSoon(date, t.deadline)) {
             throw new Error(`${date} "${t.title}": a task for today needs a deadline at least 15 minutes from now (got ${t.deadline})`)
           }
           tasks.push({
@@ -77,7 +76,7 @@ export default function Admin() {
         }
         for (const r of d.reminders) {
           // A reminder earlier today (or within 15 minutes) might never reach the phone in time; leave it out.
-          if (date === today && tooSoon(r.time)) skippedReminders++
+          if (date === today && tooSoon(date, r.time)) skippedReminders++
           else reminders.push({ remind_at: `${date}T${r.time}:00+05:30`, text: r.text })
         }
       }
