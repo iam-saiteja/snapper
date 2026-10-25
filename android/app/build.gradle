@@ -7,8 +7,10 @@ android {
         applicationId "com.saiteja.snapper"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Set by CI from the git tag (see docs/RELEASES.md): vX.Y.Z -> code X*10000 + Y*100 + Z.
+        // Local builds fall back to 1 / "0.0.0-local".
+        versionCode((System.getenv("SNAPPER_VERSION_CODE") ?: "1").toInteger())
+        versionName(System.getenv("SNAPPER_VERSION_NAME") ?: "0.0.0-local")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

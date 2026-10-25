@@ -1,16 +1,23 @@
 name: Build APK
 
+# Pull requests and pushes to main build an APK (artifact). Pushing a tag vX.Y.Z builds the signed APK and
+# publishes it as a GitHub Release. See docs/RELEASES.md.
 on:
   pull_request:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create GitHub Releases on tags
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags, for the version number and release notes
 
       - uses: actions/setup-node@v4
         with:
@@ -21,6 +28,35 @@ jobs:
 
       - name: Type-check Worker
         run: npx tsc -p worker/tsconfig.json
+
+      # vX.Y.Z -> versionName X.Y.Z, versionCode X*10000 + Y*100 + Z. Other builds reuse the last release's
+      # code (so they install over it) with a "-dev" name; the next release's higher code installs over them.
+      - name: Work out the version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            if ! echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+[.][0-9]+[.][0-9]+$'; then
+              echo "::error::Release tags must look like v1.2.3 (got $GITHUB_REF_NAME)"
+              exit 1
+            fi
+            VERSION="${GITHUB_REF_NAME#v}"
+            NAME="$VERSION"
+          else
+            # Only well-formed release tags count, so a stray tag like v1.2 can't break ordinary builds.
+            LAST=$(git tag --merged HEAD --sort=-v:refname | grep -E '^v[0-9]+[.][0-9]+[.][0-9]+$' | head -1 || true)
+            LAST=${LAST:-v0.0.0}
+            VERSION="${LAST#v}"
+            NAME="$VERSION-dev.$GITHUB_RUN_NUMBER+$(git rev-parse --short HEAD)"
+          fi
+          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
+          if [ "$((10#$MINOR))" -gt 99 ] || [ "$((10#$PATCH))" -gt 99 ]; then
+            echo "::error::Minor and patch must be 0-99 (got $VERSION)"
+            exit 1
+          fi
+          CODE=$(( 10#$MAJOR * 10000 + 10#$MINOR * 100 + 10#$PATCH ))
+          if [ "$CODE" -lt 1 ]; then CODE=1; fi
+          echo "SNAPPER_VERSION_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "SNAPPER_VERSION_CODE=$CODE" >> "$GITHUB_ENV"
+          echo "Building Snapper $NAME (version code $CODE)"
 
       # The only build-time setting: where the Android app sends /api requests. Everything else
       # (Supabase URL and publishable key) the app loads from that Worker at startup.
@@ -39,11 +75,21 @@ jobs:
 
       # Signed release APK when this repository has the signing secrets (your own deployment).
       # Otherwise (forks, contributors' pull requests) a debug APK, so the code is still compiled and checked.
+      # A release tag must produce a signed APK, so a tag without the secrets fails here.
       - name: Decide build type
         id: kind
         run: |
-          if [ -n "$KEYSTORE_B64" ] && [ -n "$API_BASE" ]; then echo "type=release" >> "$GITHUB_OUTPUT"; else echo "type=debug" >> "$GITHUB_OUTPUT"; fi
-          if [ -z "$API_BASE" ]; then echo "::warning::SNAPPER_API_BASE is not set, so this APK can't reach a server. Set it in Settings > Secrets and variables > Actions > Variables."; fi
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$API_BASE" ]; then
+            echo "type=release" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "::error::Release tags need the signing secrets and the SNAPPER_API_BASE variable."
+            exit 1
+          else
+            echo "type=debug" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -z "$API_BASE" ]; then
+            echo "::warning::SNAPPER_API_BASE is not set, so this APK can't reach a server. Set it in Settings > Secrets and variables > Actions > Variables."
+          fi
         env:
           KEYSTORE_B64: ${{ secrets.SNAPPER_KEYSTORE_B64 }}
           API_BASE: ${{ vars.SNAPPER_API_BASE }}
@@ -75,3 +121,33 @@ jobs:
           name: snapper-apk-${{ steps.kind.outputs.type }}
           path: android/app/build/outputs/apk/${{ steps.kind.outputs.type }}/app-${{ steps.kind.outputs.type }}.apk
           if-no-files-found: error
+
+      # Release notes = install steps + the database migrations added since the previous release (they must be
+      # run before installing) + GitHub's notes generated from the merged pull requests.
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          PREV=$(git tag --merged "$TAG^" --sort=-v:refname | grep -E '^v[0-9]+[.][0-9]+[.][0-9]+$' | head -1 || true)
+          BASE=${PREV:-$(git rev-list --max-parents=0 HEAD | tail -1)}
+          MIGRATIONS=$(git diff --name-only --diff-filter=A "$BASE" "$TAG" -- supabase/migrations/ | sort)
+          {
+            echo "## Upgrading"
+            echo
+            if [ -n "$MIGRATIONS" ]; then
+              echo "**1. Run these database migrations first**, in order, in the Supabase SQL Editor, *before* this version reaches your Worker (if Cloudflare deploys your \`main\` automatically, before you pull it into \`main\`):"
+              echo
+              for m in $MIGRATIONS; do echo "- [\`$m\`](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/$m)"; done
+            else
+              echo "**1. Database:** no migrations in this release."
+            fi
+            echo
+            echo "**2. Server:** deploy your Worker from this version (automatic once \`main\` is at this tag, if your repo is connected to Cloudflare)."
+            echo
+            echo "**3. Phone:** download \`snapper-$TAG.apk\` below and install it over your current Snapper. It's signed with the same key, so your data stays."
+            echo
+          } > notes.md
+          cp android/app/build/outputs/apk/release/app-release.apk "snapper-$TAG.apk"
+          gh release create "$TAG" "snapper-$TAG.apk" --verify-tag --title "Snapper $TAG" --notes-file notes.md --generate-notes

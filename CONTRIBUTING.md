@@ -18,6 +18,12 @@ Thanks for helping. Pull requests are welcome directly; open one against `main`.
    The `Build APK` check (Worker type-check + APK build) must pass. Pull requests from forks don't get the
    signing secrets, so they build a debug APK instead. That still compiles and checks everything.
 
+## What to work on
+
+Planned work is grouped by release in the [milestones](https://github.com/iam-saiteja/snapper/milestones). The
+earliest open milestone is the priority. Comment on an issue before starting something big, so two people don't
+build the same thing. How releases are cut is in [docs/RELEASES.md](docs/RELEASES.md).
+
 ## Conventions
 
 - **Match the surrounding code.** TypeScript for the app and Worker, Java for the native Android code.
@@ -28,7 +34,9 @@ Thanks for helping. Pull requests are welcome directly; open one against `main`.
 - **The server decides.** Points, quiz grading, unlocks and gatekeeper decisions happen in `worker/` with the
   Supabase secret key; the app only displays them.
 - **Database changes** go in a **new** numbered file in `supabase/migrations/` (`0006_…sql`). Never edit a
-  migration that's already been released. Every new table needs row-level security.
+  migration that's already been released. Every new table needs row-level security. Say so at the top of the
+  PR: the maintainer applies the migration to the live database **before** merging, because `main` deploys the
+  Worker immediately.
 - **Shared formats** (schedule, rules, device state) live in `shared/schema.ts`. Update the
   [configuration guide](docs/configuration.md) when you add or change an option, and keep its JSON examples valid.
 - **Native code:** watch Java string literals; a `\n` must stay an escape, not a real line break.
