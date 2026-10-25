@@ -198,6 +198,16 @@ CI builds the APK and type-checks the Worker on every pull request; it needs to 
 Found a security issue (a way to get around a lock, or to read another user's data)? Please report it privately
 through [GitHub security advisories](../../security/advisories/new) instead of a public issue.
 
+## Releases and roadmap
+
+Versions are tagged `vX.Y.Z`, and each tag publishes a signed APK on the
+[Releases](https://github.com/iam-saiteja/snapper/releases) page. What's planned for each version is in the
+[milestones](https://github.com/iam-saiteja/snapper/milestones). [docs/RELEASES.md](docs/RELEASES.md) covers the
+roadmap, version numbers, and how to upgrade (database first, then server, then phone).
+
+> Until **v0.3.0** adds a "server address" screen, release APKs are built for the maintainer's own server. To use
+> Snapper with your own backend, build your APK with [step 5](#5-build-the-apk) above.
+
 ## Limitations
 
 - **Android only**, installed outside the Play Store.

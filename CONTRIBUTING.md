@@ -18,6 +18,12 @@ Thanks for helping. Pull requests are welcome directly; open one against `main`.
    The `Build APK` check (Worker type-check + APK build) must pass. Pull requests from forks don't get the
    signing secrets, so they build a debug APK instead. That still compiles and checks everything.
 
+## What to work on
+
+Planned work is grouped by release in the [milestones](https://github.com/iam-saiteja/snapper/milestones). The
+earliest open milestone is the priority. Comment on an issue before starting something big, so two people don't
+build the same thing. How releases are cut is in [docs/RELEASES.md](docs/RELEASES.md).
+
 ## Conventions
 
 - **Match the surrounding code.** TypeScript for the app and Worker, Java for the native Android code.

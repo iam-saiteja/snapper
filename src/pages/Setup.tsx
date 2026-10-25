@@ -7,11 +7,13 @@ import { ensureDeviceRegistered, syncBlocker } from '../lib/sync'
 export default function Setup() {
   const [status, setStatus] = useState<NativeStatus | null>(null)
   const [msg, setMsg] = useState('')
+  const [version, setVersion] = useState('')
 
   const refresh = () => Snapper.getStatus().then(setStatus)
   useEffect(() => {
     refresh()
     if (!isNative) return
+    CapApp.getInfo().then((i) => setVersion(`${i.version} (${i.build})`))
     const sub = CapApp.addListener('resume', refresh)
     return () => void sub.then((h) => h.remove())
   }, [])
@@ -65,6 +67,7 @@ export default function Setup() {
       <button onClick={() => syncBlocker().then(() => refresh()).then(() => setMsg('Synced.')).catch((e) => setMsg(e.message))}>Sync now</button>
       <button onClick={() => supabase.auth.signOut()}>Sign out</button>
       {msg && <p className="muted">{msg}</p>}
+      {version && <p className="muted">Snapper {version}</p>}
     </>
   )
 }
