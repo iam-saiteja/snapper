@@ -179,7 +179,8 @@ of ringing, it pauses for 5 minutes and rings again. It keeps going until it's a
   this, the whole import is rejected and nothing is saved. Reminders for today less than 15 minutes away are skipped.
 - `passScore` can't be bigger than `questions`.
 - Times must be `HH:MM` in 24-hour format (`"07:30"`, `"21:00"`, not `"9pm"`).
-- Large files are fine. They're imported in batches of 500 tasks.
+- Large files are fine. The whole file is imported in **one go**: if anything fails, nothing is saved, so you never
+  end up with half a plan (which matters because today's tasks can't be removed).
 - Mistakes are listed with their location, e.g. `days.3.tasks.0.deadline: use HH:MM (24h)`.
 
 ### Tips
