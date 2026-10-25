@@ -172,7 +172,8 @@ git pull upstream main && git push                                    # whenever
 ```
 
 On a fork, GitHub's **Sync fork** button does the same. Your Worker redeploys (if connected) and the APK rebuilds.
-If an update adds a database migration, run the new file from `supabase/migrations/` in the SQL Editor.
+If an update adds a database migration (the release notes list them), run it in the SQL Editor **before** you
+pull, so the new Worker doesn't go live against the old database.
 
 ## Contributing
 

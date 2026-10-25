@@ -45,11 +45,14 @@ installs over them. Minor and patch must stay 0–99. The app's version is shown
 
 ## Cutting a release
 
+Database migrations happen **before merging**, not at release time. `main` deploys the Worker as soon as a pull
+request merges, so a pull request that adds a file to `supabase/migrations/` gets that migration run on the live
+database first, then merged. The new Worker never runs against the old schema.
+
 1. **Finish the milestone.** Every issue in it is closed, or moved to a later milestone.
-2. **Make sure `main` is green**: the `Build APK` and Cloudflare checks pass on the latest commit.
-3. **Apply new migrations** to the live database (anything added under `supabase/migrations/` since the last
-   release). The Worker on `main` may already depend on them.
-4. **Tag and push** from an up-to-date `main`:
+2. **Make sure `main` is green**: the `Build APK` and Cloudflare checks pass on the latest commit, and every
+   migration merged since the last release has been applied.
+3. **Tag and push** from an up-to-date `main`:
 
    ```bash
    git checkout main && git pull
@@ -57,11 +60,11 @@ installs over them. Minor and patch must stay 0–99. The app's version is shown
    git push origin v0.2.0
    ```
 
-5. **The workflow does the rest.** It builds the signed APK, then creates the GitHub Release `Snapper v0.2.0` with:
+4. **The workflow does the rest.** It builds the signed APK, then creates the GitHub Release `Snapper v0.2.0` with:
    - `snapper-v0.2.0.apk` attached
-   - upgrade steps, listing the migrations added since the previous release
+   - upgrade steps, listing the migrations added since the previous release (for anyone upgrading their own copy)
    - notes generated from the merged pull requests
-6. **Close the milestone**, and install the APK on your phone.
+5. **Close the milestone**, and install the APK on your phone.
 
 A tag that isn't `vX.Y.Z` (e.g. `v1.2`, `v1.2.3-rc.1`) fails the workflow on purpose. A release also needs the
 signing secrets and the `SNAPPER_API_BASE` variable, so it fails instead of publishing an unsigned or unusable APK.
@@ -71,8 +74,10 @@ signing secrets and the `SNAPPER_API_BASE` variable, so it fails instead of publ
 Always in this order, because each step can depend on the one before:
 
 1. **Database:** run the migrations listed in the release notes, in order, in the Supabase SQL Editor.
-2. **Server:** deploy the Worker from the release (automatic when your repo is connected to Cloudflare and you've
-   pulled the release into `main`).
+   Do this **before** pulling the release into your `main`: if Cloudflare deploys your `main` automatically, the
+   new Worker goes live the moment you push, and it may need the new tables.
+2. **Server:** pull the release into your `main` (`git pull upstream main && git push`), which deploys the Worker,
+   or run `npm run build && npx wrangler deploy`.
 3. **Phone:** install the release APK over the old one. Your data stays because it's signed with the same key.
 
 Migrations are never edited after release; changes always come as a new numbered file.
