@@ -1,0 +1,10 @@
+Snapper
+Copyright 2026 The Snapper Authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software adapted from Shorts-Blocker
+(https://github.com/atick-faisal/Shorts-Blocker), Copyright 2025 Atick Faisal,
+licensed under the Apache License, Version 2.0. The adapted code is the
+YouTube Shorts / Instagram Reels detection in
+android/app/src/main/java/com/saiteja/snapper/ShortsDetectors.java.

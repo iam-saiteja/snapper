@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Atick Faisal
+ * Modifications copyright 2026 The Snapper Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.saiteja.snapper;
 
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -6,9 +22,9 @@ import java.util.ArrayDeque;
 /**
  * Detects YouTube Shorts / Instagram Reels from view ids.
  *
- * Adapted from Shorts-Blocker by Atick Faisal (Apache License 2.0):
- * https://github.com/atick-faisal/Shorts-Blocker
- * Instagram: also requires a clips viewer before treating "no feed tab" as Reels, so DMs aren't blocked.
+ * Adapted from Shorts-Blocker by Atick Faisal: https://github.com/atick-faisal/Shorts-Blocker
+ * Changes from the original: ported from Kotlin to Java; Instagram also requires a clips viewer before treating
+ * "no feed tab" as Reels (so DMs aren't blocked) and scans up to 200 nodes.
  * These ids change when the apps update; adjust here when detection breaks.
  */
 final class ShortsDetectors {
