@@ -1,4 +1,5 @@
 import { json, type Env, type Route } from './lib/core'
+import * as config from './api/config'
 import * as deviceRegister from './api/device/register'
 import * as deviceState from './api/device/state'
 import * as linkSummarize from './api/link/summarize'
@@ -10,6 +11,7 @@ import * as unlock from './api/unlock'
 import * as unlockChat from './api/unlock-chat'
 
 const routes: Record<string, { GET?: Route; POST?: Route }> = {
+  '/api/config': config,
   '/api/state': state,
   '/api/quiz/start': quizStart,
   '/api/quiz/answer': quizAnswer,

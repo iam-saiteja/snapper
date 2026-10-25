@@ -6,6 +6,7 @@ export interface Env {
   GROQ_API: string
   SUPABASE_SECRET_KEY: string
   SUPABASE_URL?: string
+  SUPABASE_PUBLISHABLE_KEY?: string
   NEXT_PUBLIC_SUPABASE_URL?: string
   GEMINI_MODEL?: string
   GROQ_MODEL?: string

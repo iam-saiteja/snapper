@@ -1,8 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "snapper",
-  // Pinned so wrangler commands from a different login fail instead of creating a Worker elsewhere.
-  "account_id": "6223f4755cd165d71614d9659c53c84c",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
@@ -11,8 +9,8 @@
     "run_worker_first": ["/api/*"]
   },
   "observability": { "enabled": true },
-  // Public values only. Secrets (GEMINI_API, GROQ_API, SUPABASE_SECRET_KEY) are set with `wrangler secret put`.
-  "vars": {
-    "SUPABASE_URL": "https://dpolzjyyjnkcncroxkmc.supabase.co"
-  }
+  // No deployment's values live here. Each Worker gets its own with `npx wrangler secret put <NAME>`:
+  //   SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY, GEMINI_API, GROQ_API
+  // Variables set in the Cloudflare dashboard are kept across deploys.
+  "keep_vars": true
 }

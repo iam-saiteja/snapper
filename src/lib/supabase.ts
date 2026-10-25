@@ -1,9 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { ClientConfig } from './config'
 
-export const supabase = createClient(
-  import.meta.env.NEXT_PUBLIC_SUPABASE_URL,
-  import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-)
+// Created once at startup from the deployment's config (see main.tsx). Importers read the live binding.
+export let supabase: SupabaseClient
+
+export function initSupabase(config: ClientConfig) {
+  supabase = createClient(config.supabaseUrl, config.supabasePublishableKey)
+}
 
 export type Task = {
   id: string
