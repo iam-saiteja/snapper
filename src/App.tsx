@@ -16,6 +16,7 @@ import Admin from './pages/Admin'
 import Setup from './pages/Setup'
 import Apps from './pages/Apps'
 import Licenses from './pages/Licenses'
+import Ack from './pages/Ack'
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -46,6 +47,15 @@ export default function App() {
     return () => void sub.then((h) => h.remove())
   }, [session, navigate])
 
+  // "Answer the question" on a ringing reminder opens its question screen.
+  useEffect(() => {
+    if (!session || !isNative) return
+    const open = (id: string) => navigate(`/ack/${id}`)
+    Snapper.consumePendingAck().then(({ id }) => id && open(id))
+    const sub = Snapper.addListener('reminderAck', (e) => open(e.id))
+    return () => void sub.then((h) => h.remove())
+  }, [session, navigate])
+
   if (session === undefined) return <main className="muted">Loading…</main>
   if (!session) return <Login />
 
@@ -63,6 +73,7 @@ export default function App() {
           <Route path="/apps" element={<Apps />} />
           <Route path="/setup" element={<Setup />} />
           <Route path="/licenses" element={<Licenses />} />
+          <Route path="/ack/:id" element={<Ack />} />
         </Routes>
       </main>
       <nav>

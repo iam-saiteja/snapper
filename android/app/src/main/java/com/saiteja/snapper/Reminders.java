@@ -35,6 +35,17 @@ final class Reminders {
         setAlarm(c, id, at, text, audioPath);
     }
 
+    /** The stored reminder ({at, text, audioPath}), or null. Kept until it's acknowledged. */
+    static synchronized JSONObject get(Context c, String id) {
+        return load(c).optJSONObject(id);
+    }
+
+    /** Ring the same reminder again later (until it's acknowledged). */
+    static void ringAgainAt(Context c, String id, long at) {
+        JSONObject r = get(c, id);
+        if (r != null) schedule(c, id, at, r.optString("text", "Reminder"), r.optString("audioPath", null));
+    }
+
     static synchronized void cancel(Context c, String id) {
         JSONObject all = load(c);
         JSONObject r = all.optJSONObject(id);

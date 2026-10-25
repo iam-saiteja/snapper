@@ -19,7 +19,7 @@ export type NativeStatus = {
 
 export type InstalledApp = { package: string; name: string; category: string; payment: boolean; usageMs: number }
 
-// Implemented in android/app/src/main/java/com/saiteja/snapper/SnapperPlugin.kt
+// Implemented in android/app/src/main/java/com/saiteja/snapper/SnapperPlugin.java
 interface SnapperPlugin {
   getStatus(): Promise<NativeStatus>
   openAccessibilitySettings(): Promise<void>
@@ -34,7 +34,11 @@ interface SnapperPlugin {
   listApps(): Promise<{ apps: InstalledApp[]; usageAccess: boolean; categoriesSupported: boolean }>
   openUsageAccessSettings(): Promise<void>
   openPrivateDnsSettings(): Promise<void>
+  consumePendingAck(): Promise<{ id: string | null }>
+  stopReminderRinging(o: { id: string }): Promise<void>
+  acknowledgeReminder(o: { id: string }): Promise<void>
   addListener(event: 'shared', cb: (e: { text: string }) => void): Promise<PluginListenerHandle>
+  addListener(event: 'reminderAck', cb: (e: { id: string }) => void): Promise<PluginListenerHandle>
 }
 
 export const isNative = Capacitor.isNativePlatform()
@@ -67,6 +71,9 @@ const WebStub: SnapperPlugin = {
   listApps: async () => ({ apps: [], usageAccess: false, categoriesSupported: true }),
   openUsageAccessSettings: async () => {},
   openPrivateDnsSettings: async () => {},
+  consumePendingAck: async () => ({ id: null }),
+  stopReminderRinging: async () => {},
+  acknowledgeReminder: async () => {},
   addListener: async () => ({ remove: async () => {} }),
 }
 

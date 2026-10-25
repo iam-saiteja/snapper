@@ -40,12 +40,14 @@ The formats are defined in [`shared/schema.ts`](../shared/schema.ts); the app an
 
 ### What you can and can't change
 
-| | Today and past | Tomorrow onwards |
-|---|---|---|
-| Add tasks | ❌ | ✅ |
-| Remove tasks | ❌ | ✅ |
-| Edit a task | ❌ (remove and re-add a future one instead) | ❌ |
-| Change blocking rules | Changes apply from **tomorrow** | ✅ |
+| | Past days | Today | Tomorrow onwards |
+|---|---|---|---|
+| Add tasks | ❌ | ✅ if its deadline is still ahead | ✅ |
+| Remove tasks | ❌ | ❌ | ✅ |
+| Edit a task | ❌ | ❌ | ❌ (remove and re-add instead) |
+| Change blocking rules | | Changes apply from **tomorrow** | ✅ |
+
+So you can always add to today's plan, but whatever you add today stays.
 
 The database enforces these rules (Supabase row-level security), not just the app.
 
@@ -155,12 +157,25 @@ You can mix `date` and `day` entries in the same file. Days you leave out simply
 
 | Field | Required | Format | Meaning |
 |---|---|---|---|
-| `time` | ✅ | `HH:MM`, 24h, IST | When the phone notifies you and reads the text aloud. |
+| `time` | ✅ | `HH:MM`, 24h, IST | When the phone starts ringing (see [ringing reminders](#ringing-reminders)). |
 | `text` | ✅ | text | What it says. |
+
+### Ringing reminders
+
+A reminder rings like an alarm (your recorded voice on a loop, or the text read aloud and then the alarm tone)
+**until you acknowledge it**:
+
+1. Tap **Answer the question** on the notification. The ringing stops and Snapper opens.
+2. The AI asks a fresh question about the reminder (for example "What's the first problem you'll solve?").
+3. Answer it, by voice or text. A genuine, on-topic answer acknowledges the reminder; "ok" or "yes" doesn't.
+
+If you stop the ringing but don't answer, it rings again **5 minutes later**. If nobody answers for 30 minutes
+of ringing, it pauses for 5 minutes and rings again. It keeps going until it's acknowledged.
 
 ### Rules the import checks
 
-- **Every date must be tomorrow or later.** If one day is today or in the past, the whole import is rejected and nothing is saved.
+- **Dates must be today or later**, and a task for **today** needs a deadline that hasn't passed yet. If any
+  task breaks this, the whole import is rejected and nothing is saved. Reminders for earlier today are skipped.
 - `passScore` can't be bigger than `questions`.
 - Times must be `HH:MM` in 24-hour format (`"07:30"`, `"21:00"`, not `"9pm"`).
 - Large files are fine. They're imported in batches of 500 tasks.
@@ -184,7 +199,7 @@ Create a study schedule as JSON for my app. Use exactly this format and nothing 
 
 {
   "plan": "<plan name>",
-  "start": "<YYYY-MM-DD, tomorrow or later>",
+  "start": "<YYYY-MM-DD, today or later>",
   "days": [
     {
       "day": 1,

@@ -44,6 +44,12 @@ export const api = {
       '/api/unlock-chat',
       { package: pkg, message, chatId, name },
     ),
+  reminderQuestion: (reminderId: string) =>
+    post<{ acknowledged: boolean; ackId?: string; question?: string; reminder?: string }>('/api/reminder/question', {
+      reminderId,
+    }),
+  reminderAnswer: (ackId: string, answer: string) =>
+    post<{ accepted: boolean; feedback: string }>('/api/reminder/answer', { ackId, answer }),
   summarize: (url: string) => post<{ title: string; summary: string }>('/api/link/summarize', { url }),
   registerDevice: () => post<{ token: string }>('/api/device/register', {}),
   transcribe: (audio: Blob, filename: string) => {
