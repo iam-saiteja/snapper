@@ -42,6 +42,12 @@ build the same thing. How releases are cut is in [docs/RELEASES.md](docs/RELEASE
 - **Native code:** watch Java string literals; a `\n` must stay an escape, not a real line break.
   Shorts/Reels detection lives in `ShortsDetectors.java`. Note which app version you tested against.
 
+## License
+
+By opening a pull request you agree that your contribution is licensed under the
+[Apache License 2.0](LICENSE), like the rest of Snapper (see section 5 of the license). If you bring in code from
+another project, it needs a compatible license; credit it in [NOTICE](NOTICE) and keep its copyright header.
+
 ## Security
 
 Never commit keys, `.env` files or anyone's deployment values (URLs, account IDs). Every deployment's settings

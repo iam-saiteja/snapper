@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { App as CapApp } from '@capacitor/app'
+import { Link } from 'react-router-dom'
 import { isNative, Snapper, type NativeStatus } from '../lib/native'
 import { supabase } from '../lib/supabase'
 import { ensureDeviceRegistered, syncBlocker } from '../lib/sync'
@@ -67,7 +68,10 @@ export default function Setup() {
       <button onClick={() => syncBlocker().then(() => refresh()).then(() => setMsg('Synced.')).catch((e) => setMsg(e.message))}>Sync now</button>
       <button onClick={() => supabase.auth.signOut()}>Sign out</button>
       {msg && <p className="muted">{msg}</p>}
-      {version && <p className="muted">Snapper {version}</p>}
+      <p className="muted">
+        {version && <>Snapper {version} · </>}
+        <Link to="/licenses">Licenses</Link>
+      </p>
     </>
   )
 }

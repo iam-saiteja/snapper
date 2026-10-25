@@ -217,7 +217,13 @@ roadmap, version numbers, and how to upgrade (database first, then server, then 
 - **App detection can break** when Instagram, YouTube or Chrome change their screens.
 - **Free AI tiers** have rate limits; Snapper falls back from Groq to Gemini when one is busy.
 
+## License
+
+Snapper is licensed under the [Apache License 2.0](LICENSE). You can use, modify and share it, including
+commercially, as long as you keep the license and the [NOTICE](NOTICE) file. Contributions are accepted under the
+same license.
+
 ## Credits
 
 Shorts/Reels detection is adapted from [Shorts-Blocker](https://github.com/atick-faisal/Shorts-Blocker) by
-Atick Faisal (Apache-2.0).
+Atick Faisal (Apache-2.0). See [NOTICE](NOTICE).

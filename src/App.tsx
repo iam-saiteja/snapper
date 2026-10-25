@@ -15,6 +15,7 @@ import Links from './pages/Links'
 import Admin from './pages/Admin'
 import Setup from './pages/Setup'
 import Apps from './pages/Apps'
+import Licenses from './pages/Licenses'
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/apps" element={<Apps />} />
           <Route path="/setup" element={<Setup />} />
+          <Route path="/licenses" element={<Licenses />} />
         </Routes>
       </main>
       <nav>

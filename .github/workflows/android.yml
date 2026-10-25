@@ -150,4 +150,4 @@ jobs:
             echo
           } > notes.md
           cp android/app/build/outputs/apk/release/app-release.apk "snapper-$TAG.apk"
-          gh release create "$TAG" "snapper-$TAG.apk" --verify-tag --title "Snapper $TAG" --notes-file notes.md --generate-notes
+          gh release create "$TAG" "snapper-$TAG.apk" LICENSE NOTICE --verify-tag --title "Snapper $TAG" --notes-file notes.md --generate-notes
