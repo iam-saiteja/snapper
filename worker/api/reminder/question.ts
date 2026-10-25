@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { aiJson } from '../../lib/ai'
-import { body, db, handler, HttpError, maybe, must, requireUser } from '../../lib/core'
+import { body, db, handler, maybe, must, requireUser } from '../../lib/core'
 
 const Generated = z.object({ question: z.string().min(5), keyPoints: z.string() })
 
@@ -13,7 +13,8 @@ export const POST = handler(async (ctx) => {
   const reminder = maybe(
     await sb.from('reminders').select('id, text, acked_at').eq('id', reminderId).eq('user_id', userId).maybeSingle(),
   )
-  if (!reminder) throw new HttpError(404, 'reminder not found')
+  // Deleted (e.g. from another device): treat as done so the phone stops ringing for it.
+  if (!reminder) return { acknowledged: true, deleted: true }
   if (reminder.acked_at) return { acknowledged: true }
 
   const asked = must(

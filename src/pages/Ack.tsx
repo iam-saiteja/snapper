@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { isNative, Snapper } from '../lib/native'
 import { listen, speak } from '../lib/voice'
@@ -10,6 +10,8 @@ type Question = { ackId: string; question: string; reminder: string }
 // AI's question acknowledges the reminder. Without one, it rings again in 5 minutes.
 export default function Ack() {
   const { id = '' } = useParams()
+  // Each tap on "Answer the question" is a new navigation, even for the same reminder: stop it again.
+  const { key } = useLocation()
   const [q, setQ] = useState<Question | null>(null)
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState('')
@@ -42,7 +44,7 @@ export default function Ack() {
   useEffect(() => {
     Snapper.stopReminderRinging({ id })
     ask()
-  }, [id])
+  }, [id, key])
 
   async function submit() {
     if (!q) return

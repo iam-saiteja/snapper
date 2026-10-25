@@ -42,7 +42,7 @@ The formats are defined in [`shared/schema.ts`](../shared/schema.ts); the app an
 
 | | Past days | Today | Tomorrow onwards |
 |---|---|---|---|
-| Add tasks | ❌ | ✅ if its deadline is still ahead | ✅ |
+| Add tasks | ❌ | ✅ if its deadline is at least 15 minutes away | ✅ |
 | Remove tasks | ❌ | ❌ | ✅ |
 | Edit a task | ❌ | ❌ | ❌ (remove and re-add instead) |
 | Change blocking rules | | Changes apply from **tomorrow** | ✅ |
@@ -174,8 +174,9 @@ of ringing, it pauses for 5 minutes and rings again. It keeps going until it's a
 
 ### Rules the import checks
 
-- **Dates must be today or later**, and a task for **today** needs a deadline that hasn't passed yet. If any
-  task breaks this, the whole import is rejected and nothing is saved. Reminders for earlier today are skipped.
+- **Dates must be today or later**, and a task for **today** needs a deadline at least **15 minutes** away (so
+  the import can never be half-done when a deadline passes, and the phone has time to sync). If any task breaks
+  this, the whole import is rejected and nothing is saved. Reminders for today less than 15 minutes away are skipped.
 - `passScore` can't be bigger than `questions`.
 - Times must be `HH:MM` in 24-hour format (`"07:30"`, `"21:00"`, not `"9pm"`).
 - Large files are fine. They're imported in batches of 500 tasks.

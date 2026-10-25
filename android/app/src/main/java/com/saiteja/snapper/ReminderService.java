@@ -113,6 +113,7 @@ public class ReminderService extends Service {
     }
 
     private void loop(Uri uri, String fallbackText) {
+        releasePlayer();
         try {
             player = new MediaPlayer();
             player.setAudioAttributes(alarmAttributes());
@@ -121,12 +122,20 @@ public class ReminderService extends Service {
             player.prepare();
             player.start();
         } catch (Exception e) {
-            stopPlayback();
+            // Only drop the broken player: the ring cap and speech fallback callbacks must keep running.
+            releasePlayer();
             if (fallbackText != null) speakThenAlarm(fallbackText);
         }
     }
 
+    /** Starts the looping alarm tone once. Speech and the fallback timer can both ask for it. */
     private void alarmTone() {
+        if (ringingId == null || player != null) return; // stopped meanwhile, or already ringing
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts = null;
+        }
         Uri tone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
         if (tone == null) tone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
         if (tone != null) loop(tone, null);
@@ -134,8 +143,9 @@ public class ReminderService extends Service {
 
     private void speakThenAlarm(String text) {
         Runnable fallback = this::alarmTone;
-        handler.postDelayed(fallback, 15_000); // if speech never starts or finishes
+        handler.postDelayed(fallback, 30_000); // if speech never starts or finishes
         tts = new TextToSpeech(this, status -> {
+            if (tts == null) return; // stopped before the speech engine was ready
             if (status != TextToSpeech.SUCCESS) {
                 handler.removeCallbacks(fallback);
                 handler.post(this::alarmTone);
@@ -187,15 +197,18 @@ public class ReminderService extends Service {
         c.getSystemService(NotificationManager.class).createNotificationChannel(ch);
     }
 
+    private void releasePlayer() {
+        if (player == null) return;
+        try {
+            player.stop();
+        } catch (IllegalStateException ignored) {}
+        player.release();
+        player = null;
+    }
+
     private void stopPlayback() {
         handler.removeCallbacksAndMessages(null);
-        if (player != null) {
-            try {
-                player.stop();
-            } catch (IllegalStateException ignored) {}
-            player.release();
-            player = null;
-        }
+        releasePlayer();
         if (tts != null) {
             tts.stop();
             tts.shutdown();

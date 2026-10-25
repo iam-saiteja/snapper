@@ -145,7 +145,7 @@ Push to `main`, open the workflow run, and download **snapper-apk-release** (or 
    every option and has a ready-made prompt for generating a schedule with any AI chat.
 
 > Once the blocker is on, Instagram and YouTube are blocked straight away, and Snapper hides its own settings
-> screens. You can add tasks for today as long as their deadline is still ahead; once added, today's tasks can't
+> screens. You can add tasks for today if their deadline is at least 15 minutes away; once added, today's tasks can't
 > be edited or removed.
 
 ## Local development

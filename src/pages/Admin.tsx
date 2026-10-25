@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { addDays, DEFAULT_RULES, PlanImport, resolveDayDate, Rules, todayIST } from '../../shared/schema'
 import { rows, supabase, type Task } from '../lib/supabase'
+import { isNative } from '../lib/native'
+import { syncBlocker } from '../lib/sync'
 
 const CHUNK = 500
+const LEAD_MS = 15 * 60_000
 
 const EXAMPLE = JSON.stringify(
   {
@@ -50,15 +53,22 @@ export default function Admin() {
 
       const tasks: object[] = []
       const reminders: object[] = []
-      const nowTime = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(11, 16) // HH:MM in India time
+      // Read "today" now, not when the page was opened (it may have stayed open past midnight).
+      const today = todayIST()
+      const indiaTime = (msFromNow: number) => new Date(Date.now() + msFromNow + 5.5 * 3600_000).toISOString().slice(11, 16)
+      // Same-day items need 15 minutes' lead time: the phone has to sync to set the alarm, and today's tasks
+      // can't be removed, so a batch must never fail halfway because a deadline passed during the import.
+      const soon = indiaTime(LEAD_MS)
+      const dayAlmostOver = soon < indiaTime(0) // now + 15 min is already tomorrow
+      const tooSoon = (hhmm: string) => dayAlmostOver || hhmm < soon
       let skippedReminders = 0
       for (const d of plan.days) {
         const date = resolveDayDate(plan, d)
         if (date < today) throw new Error(`${date}: that day is over. You can schedule from today (${today}) onwards`)
         for (const t of d.tasks) {
           if (t.quiz.passScore > t.quiz.questions) throw new Error(`${date} "${t.title}": passScore > questions`)
-          if (date === today && t.deadline <= nowTime) {
-            throw new Error(`${date} "${t.title}": its deadline ${t.deadline} has already passed today`)
+          if (date === today && tooSoon(t.deadline)) {
+            throw new Error(`${date} "${t.title}": a task for today needs a deadline at least 15 minutes from now (got ${t.deadline})`)
           }
           tasks.push({
             plan: plan.plan, task_date: date, title: t.title, topic: t.topic, deadline: t.deadline,
@@ -66,8 +76,8 @@ export default function Admin() {
           })
         }
         for (const r of d.reminders) {
-          // A reminder earlier today would never ring; leave it out.
-          if (date === today && r.time <= nowTime) skippedReminders++
+          // A reminder earlier today (or within 15 minutes) might never reach the phone in time; leave it out.
+          if (date === today && tooSoon(r.time)) skippedReminders++
           else reminders.push({ remind_at: `${date}T${r.time}:00+05:30`, text: r.text })
         }
       }
@@ -83,7 +93,9 @@ export default function Admin() {
       }
       const rulesNote = plan.rules ? ` Rules saved, effective ${await saveRules(plan.rules)}.` : ''
       if (plan.rules) setRulesVersion((v) => v + 1)
-      const skippedNote = skippedReminders ? ` Skipped ${skippedReminders} reminder(s) whose time already passed today.` : ''
+      // Hand new reminders to the phone's alarms right away instead of waiting for the next sync.
+      if (isNative && reminders.length) await syncBlocker().catch(() => {})
+      const skippedNote = skippedReminders ? ` Skipped ${skippedReminders} reminder(s) less than 15 minutes away or already past.` : ''
       setStatus(`Imported ${tasks.length} tasks and ${reminders.length} reminders.${skippedNote}${rulesNote}`)
       setJson('')
       await load()
@@ -115,7 +127,7 @@ export default function Admin() {
     <>
       <h1>Admin</h1>
       <p className="muted">
-        You can add tasks for today ({today}) as long as their deadline is still ahead, or for any later day. Once
+        You can add tasks for today ({today}) if their deadline is at least 15 minutes away, or for any later day. Once
         added, today's tasks can't be edited or removed; tasks from tomorrow ({tomorrow}) onwards can be removed.
       </p>
 
