@@ -19,9 +19,16 @@ public class MainActivity extends BridgeActivity {
         handleShare(intent);
     }
 
-    // "Share → Snapper" from Instagram, YouTube, browsers, etc.
+    // "Share → Snapper" from Instagram, YouTube, browsers, etc., and "Answer the question" on a ringing reminder.
     private void handleShare(Intent intent) {
-        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
+        if (intent == null) return;
+        String ackId = intent.getStringExtra(ReminderService.EXTRA_ACK_ID);
+        if (ackId != null) {
+            intent.removeExtra(ReminderService.EXTRA_ACK_ID); // don't reopen the question on rotation/recreate
+            SnapperPlugin.onAckRequested(ackId);
+            return;
+        }
+        if (!Intent.ACTION_SEND.equals(intent.getAction())) return;
         String text = intent.getStringExtra(Intent.EXTRA_TEXT);
         if (text != null) SnapperPlugin.onShared(text);
     }

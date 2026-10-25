@@ -29,11 +29,48 @@ public class SnapperPlugin extends Plugin {
 
     private static SnapperPlugin instance;
     private static String pendingShared;
+    private static String pendingAck;
 
     @Override
     public void load() {
         instance = this;
         Reminders.ensureChannel(getContext());
+        ReminderService.ensureChannel(getContext());
+    }
+
+    /** Called by MainActivity when "Answer the question" is tapped on a ringing reminder. */
+    static void onAckRequested(String reminderId) {
+        if (instance != null && instance.hasListeners("reminderAck")) {
+            JSObject data = new JSObject();
+            data.put("id", reminderId);
+            instance.notifyListeners("reminderAck", data);
+        } else {
+            pendingAck = reminderId;
+        }
+    }
+
+    @PluginMethod
+    public void consumePendingAck(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("id", pendingAck);
+        pendingAck = null;
+        call.resolve(r);
+    }
+
+    /** The question screen is open: stop the sound (it rings again later unless acknowledged). */
+    @PluginMethod
+    public void stopReminderRinging(PluginCall call) {
+        String id = call.getString("id");
+        if (id != null) ReminderService.stopRinging(getContext(), id);
+        call.resolve();
+    }
+
+    /** The question was answered: this reminder is done and won't ring again. */
+    @PluginMethod
+    public void acknowledgeReminder(PluginCall call) {
+        String id = call.getString("id");
+        if (id != null) ReminderService.acknowledge(getContext(), id);
+        call.resolve();
     }
 
     /** Called by MainActivity when text/links are shared to Snapper. */

@@ -5,6 +5,8 @@ import * as deviceState from './api/device/state'
 import * as linkSummarize from './api/link/summarize'
 import * as quizAnswer from './api/quiz/answer'
 import * as quizStart from './api/quiz/start'
+import * as reminderAnswer from './api/reminder/answer'
+import * as reminderQuestion from './api/reminder/question'
 import * as state from './api/state'
 import * as transcribe from './api/transcribe'
 import * as unlock from './api/unlock'
@@ -15,6 +17,8 @@ const routes: Record<string, { GET?: Route; POST?: Route }> = {
   '/api/state': state,
   '/api/quiz/start': quizStart,
   '/api/quiz/answer': quizAnswer,
+  '/api/reminder/question': reminderQuestion,
+  '/api/reminder/answer': reminderAnswer,
   '/api/unlock': unlock,
   '/api/unlock-chat': unlockChat,
   '/api/transcribe': transcribe,

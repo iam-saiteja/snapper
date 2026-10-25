@@ -23,7 +23,7 @@ edited once the day starts, and loosening any rule only takes effect the next da
 | 🌙 **Sleep mode** | Locks the whole phone at night except calls, alarms and websites you allow. |
 | 🛡️ **Content filter** | Requires Android Private DNS set to [AdGuard Family](https://adguard-dns.io/) and keeps it locked. |
 | 🤖 **AI gatekeeper** | For real emergencies, you talk to an AI that sees your history (past requests, violations) and decides. |
-| ⏰ **Voice reminders** | Reminders that play your own recorded voice. Voice notes with transcripts. |
+| ⏰ **Ringing reminders** | Reminders ring (in your own recorded voice, if you like) until you answer an AI question about them. Voice notes with transcripts. |
 | 🔗 **Saved links** | Share a reel or link to Snapper; it saves it, summarises YouTube videos, and reminds you later. |
 | 📅 **Calendar & Apps** | Month view of tasks and points; per-app screen time like Digital Wellbeing. |
 | 🧾 **Everything in JSON** | One JSON file sets up your whole schedule and every rule. [Configuration guide →](docs/configuration.md) |
@@ -145,7 +145,8 @@ Push to `main`, open the workflow run, and download **snapper-apk-release** (or 
    every option and has a ready-made prompt for generating a schedule with any AI chat.
 
 > Once the blocker is on, Instagram and YouTube are blocked straight away, and Snapper hides its own settings
-> screens. Your first tasks can start tomorrow at the earliest, so turn it on when you're ready.
+> screens. You can add tasks for today if their deadline is at least 15 minutes away; once added, today's tasks can't
+> be edited or removed.
 
 ## Local development
 
@@ -206,7 +207,7 @@ Versions are tagged `vX.Y.Z`, and each tag publishes a signed APK on the
 [milestones](https://github.com/iam-saiteja/snapper/milestones). [docs/RELEASES.md](docs/RELEASES.md) covers the
 roadmap, version numbers, and how to upgrade (database first, then server, then phone).
 
-> Until **v0.3.0** adds a "server address" screen, release APKs are built for the maintainer's own server. To use
+> Until **v0.4.0** adds a "server address" screen, release APKs are built for the maintainer's own server. To use
 > Snapper with your own backend, build your APK with [step 5](#5-build-the-apk) above.
 
 ## Limitations
