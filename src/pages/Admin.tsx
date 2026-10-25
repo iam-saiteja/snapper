@@ -4,7 +4,6 @@ import { rows, supabase, type Task } from '../lib/supabase'
 import { isNative } from '../lib/native'
 import { syncBlocker } from '../lib/sync'
 
-const CHUNK = 500
 const LEAD_MS = 15 * 60_000
 
 const EXAMPLE = JSON.stringify(
@@ -81,16 +80,16 @@ export default function Admin() {
         }
       }
 
-      for (let i = 0; i < tasks.length; i += CHUNK) {
-        const { error } = await supabase.from('tasks').insert(tasks.slice(i, i + CHUNK))
-        if (error) throw new Error(`tasks ${i}–${i + CHUNK}: ${error.message}`)
-        setStatus(`Imported ${Math.min(i + CHUNK, tasks.length)} / ${tasks.length} tasks…`)
-      }
-      for (let i = 0; i < reminders.length; i += CHUNK) {
-        const { error } = await supabase.from('reminders').insert(reminders.slice(i, i + CHUNK))
-        if (error) throw new Error(`reminders: ${error.message}`)
-      }
-      const rulesNote = plan.rules ? ` Rules saved, effective ${await saveRules(plan.rules)}.` : ''
+      // One transaction (supabase/migrations/0008): all tasks, reminders and rules are saved, or none are. A
+      // failure can't leave half an import behind, which matters because today's tasks can't be removed.
+      setStatus(`Importing ${tasks.length} tasks and ${reminders.length} reminders…`)
+      const { data, error } = await supabase.rpc('import_plan', {
+        p_tasks: tasks,
+        p_reminders: reminders,
+        p_rules: plan.rules ?? null,
+      })
+      if (error) throw new Error(`Nothing was imported: ${error.message}`)
+      const rulesNote = plan.rules ? ` Rules saved, effective ${(data as { rules_effective: string }).rules_effective}.` : ''
       if (plan.rules) setRulesVersion((v) => v + 1)
       // Hand new reminders to the phone's alarms right away instead of waiting for the next sync.
       if (isNative && reminders.length) await syncBlocker().catch(() => {})
